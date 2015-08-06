@@ -35,12 +35,10 @@ __all__ = ['open_fits',
            'cube_crop_frames_optimized',
            'registration']
 
-#
-#
 ###############################################################################
 ###############################################################################
 ###############################################################################
-
+    
 def open_fits(filename, header=False, verbose=False):
     """
     Load a fits file as numpy array.
@@ -839,7 +837,8 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
                     p_initial,
                     args=(x,y,data,fun,n),
                     method = kwargs.pop('method','Nelder-Mead'),
-                    options=kwargs)    
+                    options=kwargs.pop('options',None),
+                    **kwargs)    
  
     # Determine the absolute position of the VORTEX center when the coordinate
     # of the center of the pixel image[0,0] is [1,1] (as it is for DS9)
@@ -1040,7 +1039,7 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
                         print '{}: invalid header card or not in the header.'.format(card)
                     cards_all[card].append(None)
         
-        # Minimization
+        # Minimization 
         result = vortex_center(image_flatted, 
                                   center[k], 
                                   size, 
@@ -1049,8 +1048,7 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
                                   display= False, 
                                   verbose=vc_verbose,
                                   method = 'Nelder-Mead', 
-                                  xtol = kwargs.pop('xtol',1e-4), 
-                                  maxiter  = kwargs.pop('maxiter',50000),
+                                  options = kwargs.pop('options',{'xtol':1e-04, 'maxiter':1e+05,' maxfev':1e+05}),
                                   **kwargs)
         
         center_all[k,:] = result[0]
