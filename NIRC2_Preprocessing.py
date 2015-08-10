@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from vip.fits import open_fits as open_fits_vip
 from vip.fits import display_array_ds9
 
+#import vip.var.pp_subplots
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -38,7 +39,7 @@ __all__ = ['open_fits',
 ###############################################################################
 ###############################################################################
 ###############################################################################
-    
+   
 def open_fits(filename, header=False, verbose=False):
     """
     Load a fits file as numpy array.
