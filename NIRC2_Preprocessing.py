@@ -860,7 +860,7 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
         
         fig, axes = plt.subplots(nrows=1, ncols=2, figsize=fig_size)
         for k,ax in enumerate(axes.flat):
-            ax.plot(solu.x[0],solu.x[1],'+g',markersize=10, markeredgewidth=1)
+            ax.plot(solu.x[1],solu.x[0],'+g',markersize=10, markeredgewidth=1)
             im = ax.imshow(toplot[k], vmin=absolute_vmin, vmax=absolute_vmax, interpolation='nearest')            
             ax.set_title(labels[k])
             ax.set_xlabel('x')
