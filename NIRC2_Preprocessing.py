@@ -536,19 +536,25 @@ def plot_surface(image, center=None, size=None, output=False, ds9_indexing=True,
     
     if center is None or size is None:
         # If one of them is None, we just plot the whole image
-        center = (image.shape[0]//2,image.shape[1]//2)
+        #center = (image.shape[0]//2,image.shape[1]//2)
         size = image.shape[0]
+        x = np.outer(np.arange(0,size,1), np.ones(size))
+        y = x.copy().T 
+        z = image
+        
     elif ds9_indexing:
-        center = (center[0]-1,center[1]-1)
-                
+        center = (center[0]-1,center[1]-1) 
+        cy,cx = center
+        if size % 2:  # if size is odd             
+            x = np.outer(np.arange(0,size,1), np.ones(size))
+        else: # otherwise, size is even
+            x = np.outer(np.arange(0,size+1,1), np.ones(size+1))
+        y = x.copy().T            
+        z = image[cx-size//2:cx+size//2+1,cy-size//2:cy+size//2+1]
+    
+    
     plt.figure(figsize=kwargs.pop('figsize',(5,5)))
     ax = plt.axes(projection='3d')
-    
-    x = np.outer(np.arange(0,size,1), np.ones(size))
-    y = x.copy().T    
-    cy,cx = center
-    z = image[cx-size//2:cx+size//2,cy-size//2:cy+size//2]
-    
     ax.plot_surface(x, y, z, rstride=1, cstride=1, linewidth=0, **kwargs) 
     ax.set_xlabel('$x$')
     ax.set_ylabel('$y$')
@@ -816,7 +822,10 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
     from scipy.optimize import minimize
     
     # Create the grid of pixels
-    x = np.outer(np.arange(0,size,1), np.ones(size))
+    if size % 2: #odd
+        x = np.outer(np.arange(0,size,1), np.ones(size))
+    else:
+        x = np.outer(np.arange(0,size+1,1), np.ones(size+1))
     y = x.copy().T
 
     # Initializate variables    
@@ -826,7 +835,7 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
         cx = cx - 1 # To match DS9 (1 -> 1024) and python (0 -> 1023) pixel indexing
         cy = cy - 1 # To match DS9 (1 -> 1024) and python (0 -> 1023) pixel indexing
     
-    data = image[cx-size//2:cx+size//2,cy-size//2:cy+size//2]
+    data = image[cx-size//2:cx+size//2+1,cy-size//2:cy+size//2+1]
     n = data.shape[0]*data.shape[1]
     
     # Display
@@ -844,10 +853,10 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
     # Determine the absolute position of the VORTEX center when the coordinate
     # of the center of the pixel image[0,0] is [1,1] (as it is for DS9)
     if ds9_indexing:                 
-        center_vortex = [cy+1-size/2.-1/2.+solu.x[1],cx+1-size/2.-1/2.+solu.x[0]]  
+        center_vortex = [cy+1+solu.x[1]-size//2, cx+1+solu.x[0]-size//2] 
     else:
         center_vortex = [cy-size/2.+solu.x[1],cx-size/2.+solu.x[0]]
-
+    
     # Display
     if display:            
         z_best = fun(x,y,*solu.x)
@@ -861,7 +870,7 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
         fig, axes = plt.subplots(nrows=1, ncols=2, figsize=fig_size)
         for k,ax in enumerate(axes.flat):
             ax.plot(solu.x[1],solu.x[0],'+g',markersize=10, markeredgewidth=1)
-            im = ax.imshow(toplot[k], vmin=absolute_vmin, vmax=absolute_vmax, interpolation='nearest')            
+            im = ax.imshow(toplot[k], vmin=absolute_vmin, vmax=absolute_vmax, interpolation='nearest', origin='lower')            
             ax.set_title(labels[k])
             ax.set_xlabel('x')
             ax.set_ylabel('y')
@@ -872,12 +881,11 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
         if savefig:
             fig.savefig('data_model.png')
         
-        fig = plt.figure(figsize=kwargs.pop('figsize',(6,5)))
+        fig = plt.figure(figsize=kwargs.get('figsize',(6,5)))
         plt.hold('on')
         plt.title('Residuals')
         fig2 = plt.contourf(x,y,z_best-data,40,cmap=plt.cm.cool)
-        plt.colorbar(fig2)
-        
+        plt.colorbar(fig2)        
         if savefig:
             fig.savefig('residuals.png')
         
@@ -894,9 +902,11 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
         print ''
         print 'VORTEX center'
         print '-------------'
-        print 'Position of the VORTEX center: [{:.3f},{:.3f}]'.format(center_vortex[0],center_vortex[1]) 
-        print 'Relative position of the VORTEX center in the box: [{:.3f},{:.3f}]'.format(solu.x[0],solu.x[1])
-        
+        print 'Position of the VORTEX center (in DS9): [{:.3f},{:.3f}]'.format(center_vortex[0],center_vortex[1]) 
+        print 'Relative position of the VORTEX center in the box: [{:.3f},{:.3f}]'.format(solu.x[1],solu.x[0])
+        print ''
+        print 'Note: The center position is given with regard to the DS9 convention,'
+        print 'i.e. [1,1] corresponds to the center of the first pixel.'        
         print ''
         print 'Optimized parameters'
         print '--------------------'
