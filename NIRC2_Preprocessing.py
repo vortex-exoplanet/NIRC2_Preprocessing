@@ -2,7 +2,7 @@
 """
 Created on Wed Jul 15 15:57:40 2015
 
-@author: Olivier
+@author: Olivier Wertz, Carlos Gomez, see credits.
 """
 
 from __future__ import division
@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 from vip.fits import open_fits as open_fits_vip
 from vip.fits import display_array_ds9
 
-#import vip.var.pp_subplots
+from astropy.time import Time
+
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -34,7 +35,10 @@ __all__ = ['open_fits',
            'vortex_center_routine',
            'timeExtract',
            'cube_crop_frames_optimized',
-           'registration']
+           'registration',
+           'precess',
+           'premat',
+           'get_parang']
 
 ###############################################################################
 ###############################################################################
@@ -51,6 +55,9 @@ def open_fits(filename, header=False, verbose=False):
 
     header : boolean (optional)
         If True, the header is returned along with the data.
+        
+    verbose : boolean (optional)
+        If True, additional informations are displayed in the shell.        
         
     Returns
     -------
@@ -521,6 +528,11 @@ def plot_surface(image, center=None, size=None, output=False, ds9_indexing=True,
     size : int (optional, default=None)
         If None, the whole image will be plotted. Otherwise, it corresponds to
         the size of a square in the image.
+
+    ds9_indexing : boolean
+        If True, match 1-indexing with Python 0-indexing. Furthermore, pixel 
+        coordinates in DS9 is inverted in comparison with the corresponding 
+        Python array entry.        
 
     kwargs:
         Additional attributs are passed to the matplotlib figure() and 
@@ -1218,7 +1230,8 @@ def registration(fileList, initial_position, final_position, ds9_indexing=True, 
         
 # -----------------------------------------------------------------------------
 
-def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True, display=False, save=False, **kwargs):
+def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True, 
+                               display=False, save=False, **kwargs):
     """
     Determine the optimized size of the croppable cube of frames and crop it.
     
@@ -1296,7 +1309,8 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
         print ''
         print '########################################################'
         print 'For all frames, the target pixel values should be equal '
-        print 'to the pixel values of the cropped frame centers        '
+        print 'to the pixel values of the cropped frame centers.       '
+        print 'In other words, if Difference = 0 than that is ok !     '
         print '########################################################'
         print 'Target position   |  cropped frame center  |  Difference'
         print '---------------      --------------------     ----------'
@@ -1351,4 +1365,267 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
    
 
 
-###############################################################################    
+###############################################################################  
+
+def precess(ra0, dec0, equinox1, equinox2, doprint=False, fk4=False, 
+            radian=False):
+   """
+    NAME:
+         PRECESS
+    PURPOSE:
+         Precess coordinates from EQUINOX1 to EQUINOX2.
+    EXPLANATION:
+         For interactive display, one can use the procedure ASTRO which calls
+         PRECESS or use the /PRINT keyword.   The default (RA,DEC) system is
+         FK5 based on epoch J2000.0 but FK4 based on B1950.0 is available via
+         the /FK4 keyword.
+   
+         Use BPRECESS and JPRECESS to convert between FK4 and FK5 systems
+    CALLING SEQUENCE:
+         PRECESS, ra, dec, [ equinox1, equinox2, /PRINT, /FK4, /RADIAN ]
+   
+    INPUT - OUTPUT:
+         RA - Input right ascension (scalar or vector) in DEGREES, unless the
+                 /RADIAN keyword is set
+         DEC - Input declination in DEGREES (scalar or vector), unless the
+                 /RADIAN keyword is set
+   
+         The input RA and DEC are modified by PRECESS to give the
+         values after precession.
+   
+    OPTIONAL INPUTS:
+         EQUINOX1 - Original equinox of coordinates, numeric scalar.  If
+                  omitted, then PRECESS will query for EQUINOX1 and EQUINOX2.
+         EQUINOX2 - Equinox of precessed coordinates.
+   
+    OPTIONAL INPUT KEYWORDS:
+         /PRINT - If this keyword is set and non-zero, then the precessed
+                  coordinates are displayed at the terminal.    Cannot be used
+                  with the /RADIAN keyword
+         /FK4   - If this keyword is set and non-zero, the FK4 (B1950.0) system
+                  will be used otherwise FK5 (J2000.0) will be used instead.
+         /RADIAN - If this keyword is set and non-zero, then the input and
+                  output RA and DEC vectors are in radians rather than degrees
+   
+    RESTRICTIONS:
+          Accuracy of precession decreases for declination values near 90
+          degrees.  PRECESS should not be used more than 2.5 centuries from
+          2000 on the FK5 system (1950.0 on the FK4 system).
+   
+    EXAMPLES:
+          (1) The Pole Star has J2000.0 coordinates (2h, 31m, 46.3s,
+                  89d 15' 50.6"); compute its coordinates at J1985.0
+   
+          IDL> precess, ten(2,31,46.3)*15, ten(89,15,50.6), 2000, 1985, /PRINT
+   
+                  ====> 2h 16m 22.73s, 89d 11' 47.3"
+   
+          (2) Precess the B1950 coordinates of Eps Ind (RA = 21h 59m,33.053s,
+          DEC = (-56d, 59', 33.053") to equinox B1975.
+   
+          IDL> ra = ten(21, 59, 33.053)*15
+          IDL> dec = ten(-56, 59, 33.053)
+          IDL> precess, ra, dec ,1950, 1975, /fk4
+   
+    PROCEDURE:
+          Algorithm from Computational Spherical Astronomy by Taff (1983),
+          p. 24. (FK4). FK5 constants from "Astronomical Almanac Explanatory
+          Supplement 1992, page 104 Table 3.211.1.
+   
+    PROCEDURE CALLED:
+          Function PREMAT - computes precession matrix
+   
+    REVISION HISTORY
+          Written, Wayne Landsman, STI Corporation  August 1986
+          Correct negative output RA values   February 1989
+          Added /PRINT keyword      W. Landsman   November, 1991
+          Provided FK5 (J2000.0)  I. Freedman   January 1994
+          Precession Matrix computation now in PREMAT   W. Landsman June 1994
+          Added /RADIAN keyword                         W. Landsman June 1997
+          Converted to IDL V5.0   W. Landsman   September 1997
+          Correct negative output RA values when /RADIAN used    March 1999
+          Work for arrays, not just vectors  W. Landsman    September 2003
+          Convert to Python                     Sergey Koposov  July 2010
+   """
+   scal = True
+   if isinstance(ra0, np.ndarray):
+      ra = ra0.copy()  
+      dec = dec0.copy()
+      scal = False
+   else:
+      ra=np.array([ra0])
+      dec=np.array([dec0])
+   npts = ra.size 
+   
+   if not radian:   
+      ra_rad = np.deg2rad(ra)     #Convert to double precision if not already
+      dec_rad = np.deg2rad(dec)
+   else:   
+      ra_rad = ra
+      dec_rad = dec
+   
+   a = np.cos(dec_rad)
+   
+   x = np.zeros((npts, 3))
+   x[:,0] = a * np.cos(ra_rad)
+   x[:,1] = a * np.sin(ra_rad)
+   x[:,2] = np.sin(dec_rad)
+   
+   # Use PREMAT function to get precession matrix from Equinox1 to Equinox2
+   
+   r = premat(equinox1, equinox2, fk4=fk4)
+   
+   x2 = np.transpose(np.dot(np.transpose(r), np.transpose(x)))      #rotate to get output direction cosines
+   
+   ra_rad = np.zeros(npts) + np.arctan2(x2[:,1], x2[:,0])
+   dec_rad = np.zeros(npts) + np.arcsin(x2[:,2])
+   
+   if not radian:   
+      ra = np.rad2deg(ra_rad)
+      ra = ra + (ra < 0.) * 360.e0            #RA between 0 and 360 degrees
+      dec = np.rad2deg(dec_rad)
+   else:   
+      ra = ra_rad
+      dec = dec_rad
+      ra = ra + (ra < 0.) * 2.0e0 * np.pi
+   
+   if doprint:   
+      print 'Equinox (%.2f): %f,%f' % (equinox2, ra, dec)
+   if scal:
+      ra, dec = ra[0], dec[0]
+   return ra, dec    
+   
+
+
+def premat(equinox1, equinox2, fk4=False):
+   """
+    NAME:
+          PREMAT
+    PURPOSE:
+          Return the precession matrix needed to go from EQUINOX1 to EQUINOX2.
+    EXPLANTION:
+          This matrix is used by the procedures PRECESS and BARYVEL to precess
+          astronomical coordinates
+   
+    CALLING SEQUENCE:
+          matrix = PREMAT( equinox1, equinox2, [ /FK4 ] )
+   
+    INPUTS:
+          EQUINOX1 - Original equinox of coordinates, numeric scalar.
+          EQUINOX2 - Equinox of precessed coordinates.
+   
+    OUTPUT:
+         matrix - double precision 3 x 3 precession matrix, used to precess
+                  equatorial rectangular coordinates
+   
+    OPTIONAL INPUT KEYWORDS:
+          /FK4   - If this keyword is set, the FK4 (B1950.0) system precession
+                  angles are used to compute the precession matrix.   The
+                  default is to use FK5 (J2000.0) precession angles
+   
+    EXAMPLES:
+          Return the precession matrix from 1950.0 to 1975.0 in the FK4 system
+   
+          IDL> matrix = PREMAT( 1950.0, 1975.0, /FK4)
+   
+    PROCEDURE:
+          FK4 constants from "Computational Spherical Astronomy" by Taff (1983),
+          p. 24. (FK4). FK5 constants from "Astronomical Almanac Explanatory
+          Supplement 1992, page 104 Table 3.211.1.
+   
+    REVISION HISTORY
+          Written, Wayne Landsman, HSTX Corporation, June 1994
+          Converted to IDL V5.0   W. Landsman   September 1997
+   """
+
+   deg_to_rad = np.pi / 180.0e0
+   sec_to_rad = deg_to_rad / 3600.e0
+   
+   t = 0.001e0 * (equinox2 - equinox1)
+   
+   if not fk4:   
+      st = 0.001e0 * (equinox1 - 2000.e0)
+      #  Compute 3 rotation angles
+      a = sec_to_rad * t * (23062.181e0 + st * (139.656e0 + 0.0139e0 * st) + t * (30.188e0 - 0.344e0 * st + 17.998e0 * t))
+      
+      b = sec_to_rad * t * t * (79.280e0 + 0.410e0 * st + 0.205e0 * t) + a
+      
+      c = sec_to_rad * t * (20043.109e0 - st * (85.33e0 + 0.217e0 * st) + t * (-42.665e0 - 0.217e0 * st - 41.833e0 * t))
+      
+   else:   
+      
+      st = 0.001e0 * (equinox1 - 1900.e0)
+      #  Compute 3 rotation angles
+      
+      a = sec_to_rad * t * (23042.53e0 + st * (139.75e0 + 0.06e0 * st) + t * (30.23e0 - 0.27e0 * st + 18.0e0 * t))
+      
+      b = sec_to_rad * t * t * (79.27e0 + 0.66e0 * st + 0.32e0 * t) + a
+      
+      c = sec_to_rad * t * (20046.85e0 - st * (85.33e0 + 0.37e0 * st) + t * (-42.67e0 - 0.37e0 * st - 41.8e0 * t))
+      
+   
+   sina = np.sin(a)
+   sinb = np.sin(b)
+   sinc = np.sin(c)
+   cosa = np.cos(a)
+   cosb = np.cos(b)
+   cosc = np.cos(c)
+   
+   r = np.zeros((3, 3))
+   r[0,:] = np.array([cosa * cosb * cosc - sina * sinb, sina * cosb + cosa * sinb * cosc, cosa * sinc])
+   r[1,:] = np.array([-cosa * sinb - sina * cosb * cosc, cosa * cosb - sina * sinb * cosc, -sina * sinc])
+   r[2,:] = np.array([-cosb * sinc, -sinb * sinc, cosc])
+   
+   return r
+   
+   
+def get_parang(header, latitude, epoch=None):
+    """
+    Calculates the parallactic angle for a frame, taking coordinates and
+    local sidereal time from fits-headers (frames taken in an alt-az telescope 
+    with the image rotator off).
+    
+    The coordinates in the header are assumed to be J2000 FK5 coordinates.
+    The spherical trigonometry formula for calculating the parallactic angle
+    is taken from Astronomical Algorithms, Eq. (13.1) (Meeus, 1998).
+    
+    Parameters
+    ----------
+    header : dictionary
+        Header of current frame.
+    latitude : float
+        Latitude of the observatory in degrees.
+        
+    Returns
+    -------
+    out : float
+        The parallactic angle
+        
+    """
+    
+    dec0 = header['DEC']
+    
+    if epoch is None:
+        try:
+            epoch = header['EQUINOX']
+            print 'Header card EQUINOX: {}'.format(epoch)
+        except KeyError:
+            print 'Header card EQUINOX not found. FK5 epoch was selected.'
+            epoch = 'FK5'
+    
+    obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
+    if epoch == 'FK5':
+        _, dec = precess(header['RA'],dec0,2000,obs_epoch.decimalyear)
+    elif epoch == 'todate':
+        dec = dec0
+    else:
+        _, dec = precess(header['RA'],dec0,epoch,obs_epoch.decimalyear)
+    
+    dec_curr = np.deg2rad(dec)
+    hour_angle = np.deg2rad(header['HA'])
+    latitude = np.deg2rad(latitude)
+    
+    pa = -np.rad2deg(np.arctan2(-np.sin(hour_angle), np.cos(dec_curr) * \
+    np.tan(latitude) - np.sin(dec_curr) * np.cos(hour_angle))) 
+    
+    return pa  
