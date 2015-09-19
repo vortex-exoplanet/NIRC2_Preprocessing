@@ -77,7 +77,7 @@ def open_fits(filename, header=False, verbose=False):
             return open_fits_vip(filename, header=True, verbose=verbose)
         else:
             return open_fits_vip(filename, header=False, verbose=verbose)
-    except IOError: # If a *missing END card* error is raised 
+    except: # If a *missing END card* error is raised 
         try:
             import pyfits
         except ImportError:
