@@ -15,6 +15,8 @@ from vip.fits import display_array_ds9
 
 from astropy.time import Time
 
+from scipy.optimize import minimize
+
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -22,6 +24,10 @@ warnings.filterwarnings('ignore')
 
 __all__ = ['open_fits',
            'listing',
+           'create_header',
+           'extract_headers',
+           'find_header_card',
+           #'longestSubstringFinder',
            'masterFlat',
            'applyFlat',
            'create_cube_from_frames',
@@ -132,8 +138,126 @@ def create_header(h):
         except ValueError:
             continue
     return header_valid
-    
 
+# -----------------------------------------------------------------------------
+
+def extract_headers(file_list):
+    """
+    Extract all the common header items from a fits file list and put it in a 
+    new dict-type object.
+    
+    Parameters
+    ----------
+    file_list : str
+        A list of all image paths.
+        
+    Returns
+    -------
+    out : dict
+        {'card0' : [val01, val02, ...],
+        'card1' : [val11, val12, ...]}    
+    
+    """
+    _ , header = open_fits(file_list[0], header=True, verbose=False)    
+    headers = {key : [value] for key, value in header.items()}
+    
+    for f in file_list[1:]:
+        _ , header = open_fits(f, header=True, verbose=False)
+        for key,value in header.items():
+            try:
+                headers[key].append(value)
+            except KeyError:
+                pass
+    
+    for key in headers.keys():
+        try:
+            headers[key].append(header.cards[key][-1])
+        except KeyError:
+            pass
+    
+    return headers
+
+# -----------------------------------------------------------------------------
+
+def find_header_card(header, card, criterion='find', info=False):
+    """
+    Check and return (if exists) the header card value according to the given 
+    criterion.
+    
+    Parameters
+    ----------
+    header : dict
+        Valid header object.        
+    card : str
+        The header card or part of a header card we want to extract.
+    criterion : str
+        Type of search:
+            find: try to find all header cards which contain /card
+            start: try to find all header cards which start with /card
+            end: try to find all header cards which end with /card
+            
+    Return
+    ------
+    out : dict or boolean
+        If there are results to returned, dict-type object. Otherwise, False.
+    
+    """
+    if criterion == 'xfind':
+        try:
+            res = {card : header[card]}
+        except KeyError:
+            res = {}
+    elif criterion == 'find':
+        res = {key : value for key, value in header.items() if key.find(card) > -1}
+    elif criterion == 'start':
+        res = {key : value for key, value in header.items() if key.startswith(card)}
+    elif criterion == 'end':
+        res = {key : value for key, value in header.items() if key.endswith(card)}
+
+    if bool(res) is False:
+        res = {card : 'not found'}
+        infos = {card : 'nope'}
+    elif info:
+        try:
+            infos = {key : header.cards[key][2] for key in res.keys()}
+        except AttributeError:
+            infos = {key : 'nope' for key in res.keys()}
+
+    if info:
+        return res, infos
+    else:
+        return res
+
+
+# -----------------------------------------------------------------------------
+#
+#def longestSubstringFinder(string1, string2):
+#    """
+#    Return the longest common substring between two strings.
+#    
+#    Parameters
+#    ----------
+#    string1, 2: str
+#        The two strings to compare.
+#        
+#    Return
+#    ------
+#    out : str
+#        The longest common substring.
+#        
+#    """
+#    answer = ""
+#    len1, len2 = len(string1), len(string2)
+#    for i in range(len1):
+#        match = ""
+#        for j in range(len2):
+#            if (i + j < len1 and string1[i + j] == string2[j]):
+#                match += string2[j]
+#            else:
+#                if (len(match) > len(answer)): answer = match
+#                match = ""
+#    return answer 
+    
 # -----------------------------------------------------------------------------
 
 def timeExtract(date,time):
@@ -260,13 +384,13 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False):
     
     # Initializate variables
     flats = np.zeros([l,c,n_image])
-    headers = []
+    #headers = []
 
     # Loop: open all images and concatenate them into a bigger array
     for j in range(n_image):
         if header:
             flats[:,:,j], h = open_fits(fileList[j], header=True)
-            headers.append(h)
+            #headers.append(h)
         else:
             flats[:,:,j] = open_fits(fileList[j], header=False)
     
@@ -296,6 +420,10 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False):
         ## Save > Write the fits    
         write_fits(path+'mflat.fits',mflat)
     
+    # Headers
+    if header:
+        headers = extract_headers(fileList)
+        
     # Return output(s)
     if header:    
         return mflat, headers
@@ -352,7 +480,7 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False, ver
     
     if save:
         from vip.fits import write_fits
-        import os
+        import os    
         
     # Loop: process and handle each file 
     for i, filepath in enumerate(fileList):
@@ -401,11 +529,11 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False, ver
             write_fits(output, processed, header=header_valid, verbose=False)
             
             if verbose:
-                print '{} successfully saved'.format(output)
+                print '/flatted/{} successfully saved'.format(output[-output[::-1].find('/'):])
 
     # Return the output(s)
     if header:
-        return processed_all, headers
+        return processed_all, extract_headers(fileList)
     else:
         return processed_all
 
@@ -502,7 +630,7 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
             print 'The cube is successfully saved'
     
     if header:        
-        return cube, headers
+        return cube, extract_headers(file_list)
     else:
         return cube
     
@@ -831,7 +959,7 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
     # Gaussian_sym: x0, y0, sigma_x, i0, bkg
     """
     # Import
-    from scipy.optimize import minimize
+    #from scipy.optimize import minimize
     
     # Create the grid of pixels
     if size % 2: #odd
@@ -859,9 +987,9 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
                     p_initial,
                     args=(x,y,data,fun,n),
                     method = kwargs.pop('method','Nelder-Mead'),
-                    options=kwargs.pop('options',None),
+                    options=kwargs.pop('options',{'xtol':1e-04, 'maxiter':1e+05,' maxfev':1e+05}),
                     **kwargs)    
- 
+    #print solu                    
     # Determine the absolute position of the VORTEX center when the coordinate
     # of the center of the pixel image[0,0] is [1,1] (as it is for DS9)
     if ds9_indexing:                 
@@ -1026,6 +1154,8 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
     else:
         cards_all = None
     
+    # Optimization Options
+    options = kwargs.pop('options',{'xtol':1e-04, 'maxiter':1e+05,' maxfev':1e+05})
     # Let's go !
     for k,filename in enumerate(file_list):
         if verbose > 1:
@@ -1071,7 +1201,7 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
                                   display= False, 
                                   verbose=vc_verbose,
                                   method = 'Nelder-Mead', 
-                                  options = kwargs.pop('options',{'xtol':1e-04, 'maxiter':1e+05,' maxfev':1e+05}),
+                                  options = options,
                                   **kwargs)
         
         center_all[k,:] = result[0]
