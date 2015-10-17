@@ -11,11 +11,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from vip.fits import open_fits as open_fits_vip
-from vip.fits import display_array_ds9
+from vip.fits import display_array_ds9, write_fits
+from vip.conf import timeInit, timing
+from vip.calib import frame_shift
+from vip.calib import cube_crop_frames
 
 from astropy.time import Time
 
 from scipy.optimize import minimize
+
+from os import listdir
+from os.path import isfile, join
+from os.path import exists
+from os import makedirs
 
 
 import warnings
@@ -39,9 +47,12 @@ __all__ = ['open_fits',
            'chisquare',
            'vortex_center',
            'vortex_center_routine',
+           'vortex_center_from_dust_signature',
            'timeExtract',
+           'optimized_frame_size',
            'cube_crop_frames_optimized',
            'registration',
+           'cube_registration',
            'precess',
            'premat',
            'get_parang']
@@ -49,6 +60,7 @@ __all__ = ['open_fits',
 ###############################################################################
 ###############################################################################
 ###############################################################################
+
    
 def open_fits(filename, header=False, verbose=False):
     """
@@ -321,10 +333,7 @@ def listing(repository, selection=False, ext = 'fits'):
     out : list of str
         A list with all (or selected) filenames.
         
-    """
-    from os import listdir
-    from os.path import isfile, join    
-    
+    """        
     fileList = [f for f in listdir(repository) if isfile(join(repository,f)) if f.endswith('.'+ext)]
 
     dim = len(fileList)
@@ -344,7 +353,8 @@ def listing(repository, selection=False, ext = 'fits'):
 
 # ----------------------------------------------------------------------------- 
 
-def masterFlat(fileList, header=False, norm=True, display=False, save=False):
+def masterFlat(fileList, header=False, norm=True, display=False, save=False, 
+               verbose=False, full_output=True, path_output=None):
     """
     Create a master flat (median) from a set of single flat images.
     
@@ -377,7 +387,12 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False):
         
     """
     # TODO: si header est True, ecrire le header dans le masterflat.
-    
+    if verbose: 
+        start_time = timeInit()
+        print 'BUILDING THE MASTER FLAT'
+        print ''
+        print 'Save = {}'.format(save)
+     
     # Shape and number of files
     l, c = open_fits(fileList[0]).shape    
     n_image = len(fileList)
@@ -407,33 +422,41 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False):
 
     # Save    
     if save:
-        ## Save > Import
-        from vip.fits import write_fits
-        
-        ## Save > Determine the path in which the files will be stored
-        index = [k for k,letter in enumerate(fileList[0]) if letter == '/'] 
-        if len(index) == 0:
-            path = ''
-        else:
-            path = fileList[0][:index[-1]+1]
-            
-        ## Save > Write the fits    
-        write_fits(path+'mflat.fits',mflat)
+        if path_output is None:
+            ## Save > Determine the path in which the files will be stored
+            index = [k for k,letter in enumerate(fileList[0]) if letter == '/'] 
+            if len(index) == 0:
+                path_output = ''
+            else:
+                path_output = fileList[0][:index[-1]+1]
+
+        ## Save > Write the fits             
+        write_fits(path_output+'mflat.fits',mflat, verbose=verbose)        
     
     # Headers
     if header:
         headers = extract_headers(fileList)
-        
+    
+    if verbose:         
+        print ''
+        print '-------------------------------------------------------------------'
+        print 'Master flat successfully created'
+        timing(start_time)
+    
     # Return output(s)
-    if header:    
-        return mflat, headers
+    if full_output:
+        if header:    
+            return mflat, headers
+        else:
+            return mflat
     else:
-        return mflat
+        return None
     
 
 # ----------------------------------------------------------------------------- 
 
-def applyFlat(fileList, path_mflat, header=False, display=False, save=False, verbose=False):
+def applyFlat(fileList, path_mflat, header=False, display=False, save=False, 
+              verbose=False, full_output=True, path_output=None):
     """
     Divide all images in the fileList by the master flat. 
     
@@ -462,8 +485,19 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False, ver
         the original file path.
         
     """
+    if verbose: 
+        start_time = timeInit()
+        print 'PREPROCESSING IMAGES'
+        print ''
+        print 'Save = {}'.format(save)
+        
+        
     # Open the master flat
-    mflat = open_fits(path_mflat, header=False)
+    if isinstance(path_mflat, str):
+        mflat = open_fits(path_mflat, header=False)
+    else:
+        mflat = path_mflat
+
     
     # Check if *fileList* is a list and raise an error if not
     if isinstance(fileList, str):
@@ -475,12 +509,26 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False, ver
         raise TypeError('fileList must be a list or a str, {} given'.format(type(fileList)))
     
     # Initializate few parameters
-    processed_all = dict()
+    #processed_all = dict()
+    l, c = open_fits(fileList[0]).shape
+    processed_all_cube = np.zeros([len(fileList),l,c])
     headers = dict()
     
     if save:
-        from vip.fits import write_fits
-        import os    
+        # Determine the last / in the filepath to deduce the file path and the 
+        # last . to deduce the file name.
+        index_0 = [k for k,letter in enumerate(fileList[0]) if letter == '/']
+        index_1 = [j for j,letter in enumerate(fileList[0]) if letter =='.']        
+        if path_output is None:
+            if len(index_0) == 0:
+                path_output = ''                
+            else:
+                path_output = fileList[0][:index_0[-1]+1]
+            
+        # If it doest not exist, create the path_output/flatted/ repository to store 
+        # the processed images.
+        if not exists(path_output+'flatted/'):
+            makedirs(path_output+'flatted/')            
         
     # Loop: process and handle each file 
     for i, filepath in enumerate(fileList):
@@ -491,32 +539,19 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False, ver
             raw = open_fits(filepath, header=False)
         
         ## Loop > Process the image and store it 
-        processed = raw/mflat
-        processed_all[filepath] = processed
+        #processed = raw/mflat
+        #processed_all[filepath] = raw/mflat
+        processed_all_cube[i,:,:] = raw/mflat
         
         ## Loop > display
         if display:
-            display_array_ds9(processed)
+            display_array_ds9(processed_all_cube[i,:,:])
         
         ## Loop > save
         if save:      
-            ### Loop > save > Determine the last / in the filepath to deduce  
-            ###               the file path and the last . to deduce the file 
-            ###               name.
-            index_0 = [k for k,letter in enumerate(filepath) if letter == '/']
-            index_1 = [j for j,letter in enumerate(filepath) if letter =='.'] 
-            
-            if len(index_0) == 0:
-                path = ''                
-            else:
-                path = fileList[0][:index_0[-1]+1]
-
             filename = filepath[index_0[-1]+1:index_1[-1]]
             
-            ### Loop > save > If doest not exist, create the path/flatted/
-            ###               repository to store the processed images.
-            if not os.path.exists(path+'flatted/'):
-                os.makedirs(path+'flatted/')
+
             
             ### Loop > save > Create valid header
             if header:
@@ -525,17 +560,29 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False, ver
                 header_valid = None
             
             ### Loop > save > Write the fits
-            output = path+'flatted/'+filename+'_flatted.fits'   
-            write_fits(output, processed, header=header_valid, verbose=False)
+            output = path_output+'flatted/'+filename+'_flatted.fits'   
+            write_fits(output, processed_all_cube[i,:,:], header=header_valid, verbose=False)
             
-            if verbose:
-                print '/flatted/{} successfully saved'.format(output[-output[::-1].find('/'):])
+            #if verbose:
+            #    print '/flatted/{} successfully saved'.format(output[-output[::-1].find('/'):])
+
+    if verbose: 
+        if save:
+            print ''
+            print 'Fits files successfully created'
+        print ''
+        print '-------------------------------------------------------------------'
+        print 'Images succesfully preprocessed'        
+        timing(start_time)
 
     # Return the output(s)
-    if header:
-        return processed_all, extract_headers(fileList)
+    if full_output:
+        if header:
+            return processed_all_cube, extract_headers(fileList)
+        else:
+            return processed_all_cube
     else:
-        return processed_all
+        return None
 
 
 
@@ -614,8 +661,7 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
         if verbose:
             print 'Frame {} is added to the cube'.format(filename)
                 
-    if save:
-        from vip.fits import write_fits        
+    if save:       
         if path is None:
             index_0 = [k for k,letter in enumerate(files[0]) if letter == '/']
             if len(index_0) == 0:
@@ -1067,7 +1113,9 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
     
 # -----------------------------------------------------------------------------
 
-def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_mflat=None, additional_parameters=None, cards=None, verbose=False, **kwargs):
+def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=False, 
+                          path_mflat=None, additional_parameters=[5,5], cards=None, 
+                          verbose=False, **kwargs):
     """
     Do the same as vortex_center() but for a set of raw or preprocessed images.
     
@@ -1111,19 +1159,28 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
     # TODO: p_initial pour chaque image à traiter devrait pouvoir être passé à
     # la fonction
     
+    if verbose: 
+        start_time = timeInit()    
+        print 'FIND SIGNATURE CENTER'
+    
     if preprocess and path_mflat is None:
         raise ValueError('If "preprocess" is True, the path to the master flat (path_mflat) must be passed to the function.')
                 
     # If required, listing all files in the main repository
+    open_file = True                
     if isinstance(path_files,str):
         if path_files.endswith('/'): # If True, fileList is a repository ... 
             file_list = listing(path_files)
         else:
             file_list = [path_files]
+        n = len(file_list)
+    elif isinstance(path_files, list):
+        file_list = path_files        
+        n = len(file_list)
     else:
         file_list = path_files
-        
-    n = len(file_list)
+        n = file_list.shape[0]
+        open_file = False
     
     # First guess (relative center position in the box)
     x_ini, y_ini = (size//2,size//2)
@@ -1157,7 +1214,8 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
     # Optimization Options
     options = kwargs.pop('options',{'xtol':1e-04, 'maxiter':1e+05,' maxfev':1e+05})
     # Let's go !
-    for k,filename in enumerate(file_list):
+    #for k, filename in enumerate(file_list):
+    for k in range(n):
         if verbose > 1:
             print '###################################'
             if k+1 < 10:
@@ -1166,14 +1224,17 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
                 print 'Step {}/{}                        #'.format(k+1,n)
             print '###################################'
         elif verbose:
-            print 'Step {}/{}'.format(k+1,n)
+            pass#print 'Step {}/{}'.format(k+1,n)
         
         # Load and preprocess images
-        if preprocess:
-            preprocessed = applyFlat(file_list[k],path_mflat, header=True, display=False, save=False)
-            image_flatted, header = preprocessed[0][filename],preprocessed[1][filename]
-        else:
+        #if preprocess:
+        #    preprocessed = applyFlat(file_list[k],path_mflat, header=True, display=False, save=False)
+        #    image_flatted, header = preprocessed[0][filename],preprocessed[1][filename]
+        #else:
+        if open_file:
             image_flatted, header = open_fits(file_list[k], header=True)
+        else:
+            image_flatted = file_list[k,:,:]
         
         # Background and I0 rought estimation
         bkg_ini = np.median(image_flatted)
@@ -1183,7 +1244,7 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
         p_initial = np.array([x_ini,y_ini,i0_ini,bkg_ini]+additional_parameters)
 
         # Extract the user header card(s)
-        if cards is not None:
+        if cards is not None and open_file:
             for card in cards:
                 try:
                     cards_all[card].append(header[card])
@@ -1191,6 +1252,8 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
                     if verbose > 1:
                         print '{}: invalid header card or not in the header.'.format(card)
                     cards_all[card].append(None)
+        else:
+            cards_all = None
         
         # Minimization 
         result = vortex_center(image_flatted, 
@@ -1208,13 +1271,68 @@ def vortex_center_routine(path_files, center, size, fun, preprocess=False, path_
         success_all[k] = result[1].success
 
     if verbose:
+        if all(success_all):
+            print ''
+            print 'All numerical minimizations have converged.'
+        else:
+            print ''
+            print 'At least one numerical minimization has not converged.'
+            
         print ''
-        print 'DONE !'
+        print '-------------------------------------------------------------------'
+        print 'DONE'
+        timing(start_time)
 
     if cards is None:    
         return center_all, success_all, file_list
     else:
         return center_all, success_all, file_list, cards_all        
+
+
+# -----------------------------------------------------------------------------
+def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
+                                      verbose=True):
+    """
+    """
+    if verbose: 
+        start_time = timeInit()
+        print 'VORTEX CENTER FROM DUST SIGNATURE'
+        print ''
+    # DUST centers in sci
+    center_all_dust, _, _ = vortex_center_routine(sci, dust_options['center'], 
+                                                  dust_options['size'], dust_options.get('fun',gauss2d_sym), 
+                                                  additional_parameters=dust_options.get('parameters',[5]), 
+                                                  verbose=False)
+    if verbose:
+        print 'Dust center positions in sci images: Done.'
+    
+    # DUST center in sky
+    center_dust_in_sky, _, _ = vortex_center_routine(sky, dust_options['center'], 
+                                                  dust_options['size'], dust_options.get('fun',gauss2d_sym), 
+                                                  additional_parameters=dust_options.get('parameters',[5]), 
+                                                  verbose=False)
+    if verbose:
+        print 'Dust center position in sky image: Done'
+        
+    # VORTEX center in sky
+    center_vortex_in_sky, _, _ = vortex_center_routine(sky, vortex_options['center'], 
+                                                  vortex_options['size'], vortex_options.get('fun',gauss2d_sym), 
+                                                  additional_parameters=vortex_options.get('parameters',[5]), 
+                                                  verbose=False)
+    if verbose:
+        print 'Vortex center position in sky image: Done'    
+    
+    # VORTEX centers in sci
+    relative_position = center_vortex_in_sky[0]-center_dust_in_sky[0]    
+    center_all = center_all_dust + np.tile(relative_position,(center_all_dust.shape[0],1))    
+    
+    if verbose:
+        print ''
+        print '-------------------------------------------------------------------'
+        print 'Vortex center in sci images successfully determined.'
+        timing(start_time)
+        
+    return center_all
 
 
 # -----------------------------------------------------------------------------
@@ -1263,8 +1381,6 @@ def registration(fileList, initial_position, final_position, ds9_indexing=True, 
         Cube of all registered images and their headers
             
     """
-    from vip.calib import frame_shift
-    
     # Check if *fileList* is a list and raise an error if not
     if isinstance(fileList, str):
         if fileList.endswith('/'): # If True, fileList is a repository ... 
@@ -1289,8 +1405,7 @@ def registration(fileList, initial_position, final_position, ds9_indexing=True, 
     headers = [] 
 
     if save:
-        from vip.fits import write_fits
-        import os
+        pass
         
     # Loop: process and handle each file 
     for i, filepath in enumerate(fileList):
@@ -1320,13 +1435,13 @@ def registration(fileList, initial_position, final_position, ds9_indexing=True, 
                 path = ''                
             else:
                 path = fileList[0][:index_0[-1]+1]
-
+            print index_0, index_1
             filename = filepath[index_0[-1]+1:index_1[-1]]
             
             ### Loop > save > If doest not exist, create the path/reg/
             ###               repository to store the processed images.
-            if not os.path.exists(path+'reg/'):
-                os.makedirs(path+'reg/')
+            if not exists(path+'reg/'):
+                makedirs(path+'reg/')
             
             ### Loop > save > Create valid header
             if header:
@@ -1392,7 +1507,7 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
         
     
     """
-    from vip.calib import cube_crop_frames
+    
     
     crop_center = np.array([cenx,ceny])
     
@@ -1451,7 +1566,6 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
 
     # save
     if save: 
-        from vip.fits import write_fits
         #import os        
         ### Loop > save > Determine the last / in the filepath to deduce  
         ###               the file path and the last . to deduce the file 
@@ -1492,8 +1606,98 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
     
     # Return
     return w
-   
 
+
+# -----------------------------------------------------------------------------
+
+def optimized_frame_size(cube):
+    """
+    """
+    n_frames, l, c = cube.shape
+    frame_shape = np.array([l,c])
+    
+    center_cube = np.floor(frame_shape/2)
+    size_all = np.zeros(n_frames)
+    
+    for j in range(n_frames):
+        cube_frame = cube[j,:,:]
+    
+        q = np.where(cube_frame==0)
+        qr = np.sqrt((q[0]-center_cube[0])**2 + (q[1]-center_cube[1])**2)
+        try:
+            q_zero = qr.min()
+        except ValueError:
+            q_zero = np.inf    
+            
+        q_edge_x = np.min([np.abs(center_cube[0]-cube_frame.shape[0]),center_cube[0]])
+        q_edge_y = np.min([np.abs(center_cube[1]-cube_frame.shape[1]),center_cube[1]])
+        side = np.min([q_zero,q_edge_x,q_edge_y])
+    
+        size = 2*(side)+1
+
+        if size >= cube_frame.shape[0] or size >= cube_frame.shape[1]:
+            size = np.min([cube_frame.shape[0],cube_frame.shape[1]])-1        
+            if size % 2 == 0:
+                size -= 1
+        size_all[j] = size
+
+    size_min = np.array(size_all).min()-1
+    if size_min%2==0: size_min -= 1
+    
+    return size_min
+
+
+# -----------------------------------------------------------------------------
+
+def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True,
+                      save=True, bp_removal=False, verbose=True, path_output=''):
+    """
+    """
+    if verbose: 
+        start_time = timeInit()
+        print 'REGISTRATION AND CROP'
+        print ''
+        print 'Save = {}'.format(save)    
+    n, l, c = cube.shape
+    frame_shape = np.array([l,c])
+    reg = np.zeros_like(cube)
+    
+    center_cube = np.floor(frame_shape/2) 
+    
+    if ds9_indexing:
+        based = 1
+    else:
+        based = 0
+                
+    for i,frame in enumerate(cube):
+        shift =  center_cube - (center_all[i,:]-based) 
+        reg[i,:,:] = frame_shift(cube[i,:,:],shift[1],shift[0])
+    
+    if cube_output_size is None:
+        cube_output_size = optimized_frame_size(reg)
+
+    if cube_output_size%2==0: cube_output_size -= 1
+          
+    reg_crop = cube_crop_frames(reg, cube_output_size, center_cube[0], 
+                                center_cube[1], verbose=False)
+
+    if save:
+        #if not exists(path_output+'cube/'):
+        #    makedirs(path_output+'cube/')  
+        filename = path_output+'cube_{}{}{}.fits'.format(start_time.year,start_time.month,start_time.day)
+        write_fits(filename, reg_crop, header=None, verbose=False)
+                                
+    if verbose: 
+        if save:
+            print ''
+            print 'The following fits file has been successfully created:'
+            print '{}'.format(filename)
+        print ''
+        print '-------------------------------------------------------------------'
+        print 'Registred and croped cube successfully created'        
+        timing(start_time)                                
+    
+    return reg_crop
 
 ###############################################################################  
 
