@@ -55,7 +55,8 @@ __all__ = ['open_fits',
            'cube_registration',
            'precess',
            'premat',
-           'get_parang']
+           'get_parang',
+           'get_parallactic_angles']
 
 ###############################################################################
 ###############################################################################
@@ -354,7 +355,8 @@ def listing(repository, selection=False, ext = 'fits'):
 # ----------------------------------------------------------------------------- 
 
 def masterFlat(fileList, header=False, norm=True, display=False, save=False, 
-               verbose=False, full_output=True, path_output=None):
+               verbose=False, full_output=True, path_output=None, 
+               filtering=None):
     """
     Create a master flat (median) from a set of single flat images.
     
@@ -415,6 +417,12 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False,
     # Normalization
     if norm:
         mflat = mflat/np.median(mflat)
+        
+    # filtering
+    if filtering is not None:    
+        mflat[np.where(mflat < np.median(mflat)-filtering*np.std(mflat))] = 1
+    if verbose:
+        print 'filtering = {}'.format(filtering)
 
     # Display
     if display:
@@ -428,10 +436,13 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False,
             if len(index) == 0:
                 path_output = ''
             else:
-                path_output = fileList[0][:index[-1]+1]
-
+                path_output = fileList[0][:index[-2]+1]
+        
+        if not exists(path_output+'calibration/'):
+            makedirs(path_output+'calibration/')
+            
         ## Save > Write the fits             
-        write_fits(path_output+'mflat.fits',mflat, verbose=verbose)        
+        write_fits(path_output+'calibration/mflat.fits',mflat, verbose=verbose)        
     
     # Headers
     if header:
@@ -523,25 +534,27 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
             if len(index_0) == 0:
                 path_output = ''                
             else:
-                path_output = fileList[0][:index_0[-1]+1]
-            
+                path_output = fileList[0][:index_0[-2]+1]
+                    
         # If it doest not exist, create the path_output/flatted/ repository to store 
         # the processed images.
-        if not exists(path_output+'flatted/'):
-            makedirs(path_output+'flatted/')            
+        subrep_in_path_output = path_output+fileList[0][index_0[-2]+1:index_0[-1]]+'_flatted/'    
+        if not exists(subrep_in_path_output):
+            makedirs(subrep_in_path_output)            
         
     # Loop: process and handle each file 
     for i, filepath in enumerate(fileList):
         ## Loop > Open file and retrieve the header if needed
-        if header:
-            raw, headers[fileList[i]] = open_fits(filepath, header=True)
-        else:
-            raw = open_fits(filepath, header=False)
+        #if header:
+        raw, headers[fileList[i]] = open_fits(filepath, header=True)
+        #else:
+        #    raw = open_fits(filepath, header=False)
         
         ## Loop > Process the image and store it 
         #processed = raw/mflat
-        #processed_all[filepath] = raw/mflat
+        #processed_all[filepath] = raw/mflat        
         processed_all_cube[i,:,:] = raw/mflat
+
         
         ## Loop > display
         if display:
@@ -554,13 +567,13 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
 
             
             ### Loop > save > Create valid header
-            if header:
-                header_valid = create_header(headers[fileList[i]])
-            else:
-                header_valid = None
+            #if header:
+            header_valid = create_header(headers[fileList[i]])
+            #else:
+            #    header_valid = None
             
             ### Loop > save > Write the fits
-            output = path_output+'flatted/'+filename+'_flatted.fits'   
+            output = subrep_in_path_output+filename+'_flatted.fits'   
             write_fits(output, processed_all_cube[i,:,:], header=header_valid, verbose=False)
             
             #if verbose:
@@ -1543,7 +1556,6 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
                 size -= 1
         size_all[j] = size
     
-    
     # Crop it
     w = cube_crop_frames(cube,size_all.min(),crop_center[0],crop_center[1],verbose=verbose)
     
@@ -1682,9 +1694,9 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
                                 center_cube[1], verbose=False)
 
     if save:
-        #if not exists(path_output+'cube/'):
-        #    makedirs(path_output+'cube/')  
-        filename = path_output+'cube_{}{}{}.fits'.format(start_time.year,start_time.month,start_time.day)
+        if not exists(path_output+'cube/'):
+            makedirs(path_output+'cube/')  
+        filename = path_output+'cube/cube_{}{}{}.fits'.format(start_time.year,start_time.month,start_time.day)
         write_fits(filename, reg_crop, header=None, verbose=False)
                                 
     if verbose: 
@@ -1698,6 +1710,26 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
         timing(start_time)                                
     
     return reg_crop
+
+
+# -----------------------------------------------------------------------------
+
+def get_parallactic_angles(file_list, save=False, path_output=''):
+    """
+    """
+    parallactic_angles = np.zeros(len(file_list))
+    
+    for k, filename in enumerate(file_list):
+        _, header = open_fits(filename, header=True)
+        parallactic_angles[k] = header['ROTPPOSN']+header['PARANTEL']-header['EL']-header['INSTANGL']  
+    
+    if save:
+        if not exists(path_output+'PA/'):
+            makedirs(path_output+'PA/')          
+        write_fits(path_output+'PA/parallactic_angles.fits', parallactic_angles, header=None, verbose=False)
+    
+    return parallactic_angles
+
 
 ###############################################################################  
 
