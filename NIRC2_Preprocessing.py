@@ -39,6 +39,7 @@ __all__ = ['open_fits',
            'masterFlat',
            'applyFlat',
            'create_cube_from_frames',
+           'load_images',
            'plot_surface',
            'moffat',
            'cone',
@@ -61,8 +62,7 @@ __all__ = ['open_fits',
 ###############################################################################
 ###############################################################################
 ###############################################################################
-
-   
+  
 def open_fits(filename, header=False, verbose=False):
     """
     Load a fits file as numpy array.
@@ -644,11 +644,11 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
                 directory which contains all the fits images'''
         return None
    
-    if header:
-        first, h = open_fits(file_list[0], header=True)
-        headers = [create_header(h)]
-    else:
-        first = open_fits(file_list[0])
+    #if header:
+    first, h = open_fits(file_list[0], header=True)
+    headers = [create_header(h)]
+    #else:
+     #   first = open_fits(file_list[0])
         
     l, c = first.shape
     
@@ -659,10 +659,10 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
         print 'Frame {} is added to the cube'.format(file_list[0])
     
     for k,filename in enumerate(file_list[1:]):
-        if header:
-            temp, h_temp = open_fits(filename, header=True)
-        else:
-            temp = open_fits(filename, header=False)
+        #if header:
+        temp, h_temp = open_fits(filename, header=True)
+        #else:
+        #    temp = open_fits(filename, header=False)
             
         if temp.shape != (l,c):
             print 'Each frame must have the same dimension as the first one ({},{}), {} given for {}'.format(l,c,temp.shape,filename)
@@ -693,6 +693,40 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
     else:
         return cube
     
+
+# -----------------------------------------------------------------------------
+def load_images(path, header=False, verbose=False):
+    """
+    Load a set of images and return a cube build from the images.
+    
+    Parameters
+    ----------
+    path: str
+        Path to the images to load.
+    
+    header : boolean (optional)
+        If True, the function returns a list of all fits image headers.
+        
+    verbose : boolean (optional)
+        If True, additional informations are displayed in the shell.
+        
+    Return
+    ------
+    out : numpy.array
+        The N x l x c cube where N is the total number of frames, l x c the 
+        size of each frame in pixels. If header is True, is also returns a 
+        list of all headers.       
+    """
+    if path.endswith('.fits'):
+        image = open_fits(path, header=header, verbose=verbose)
+        l,c = image.shape
+        temp = np.zeros([1,l,c])
+        temp[0,:,:] = image
+        return temp
+    else:
+        file_list = listing(path)
+        return create_cube_from_frames(file_list, header=header, verbose=verbose)
+
     
 # -----------------------------------------------------------------------------            
 
