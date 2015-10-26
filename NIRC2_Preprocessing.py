@@ -2,7 +2,7 @@
 """
 Created on Wed Jul 15 15:57:40 2015
 
-@author: Olivier Wertz, Carlos Gomez, see credits.
+@author: Olivier Wertz, Carlos Gomez, Olivier Absil, see credits.
 """
 
 from __future__ import division
@@ -1697,8 +1697,8 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
     if save:
         if not exists(path_output+'cube/'):
             makedirs(path_output+'cube/')  
-        filename = path_output+'cube/'+filename+'_{}{}{}.fits'.format(start_time.year,start_time.month,start_time.day)
-        write_fits(filename, reg_crop, header=None, verbose=False)
+        output_filename = path_output+'cube/{}_{}{}{}.fits'.format(filename,start_time.year,start_time.month,start_time.day)
+        write_fits(output_filename, reg_crop, header=None, verbose=False)
                                 
     if verbose: 
         if save:
