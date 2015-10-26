@@ -36,6 +36,7 @@ __all__ = ['open_fits',
            'extract_headers',
            'find_header_card',
            #'longestSubstringFinder',
+           'master',
            'masterFlat',
            'applyFlat',
            'create_cube_from_frames',
@@ -334,7 +335,10 @@ def listing(repository, selection=False, ext = 'fits'):
     out : list of str
         A list with all (or selected) filenames.
         
-    """        
+    """   
+    if repository.endswith('.fits'):
+        return [repository]
+    
     fileList = [f for f in listdir(repository) if isfile(join(repository,f)) if f.endswith('.'+ext)]
 
     dim = len(fileList)
@@ -350,48 +354,49 @@ def listing(repository, selection=False, ext = 'fits'):
         print 'DONE !'
     
     return [repository+fileList[j] for j in range(dim) if choice[j] == 1]    
-    
+ 
 
 # ----------------------------------------------------------------------------- 
 
-def masterFlat(fileList, header=False, norm=True, display=False, save=False, 
-               verbose=False, full_output=True, path_output=None, 
-               filtering=None):
+def master(fileList, header=False, norm=True, display=False, save=False, 
+           verbose=False, full_output=True, path_output=None, filename='master', 
+           filtering=None, method='median'):
     """
-    Create a master flat (median) from a set of single flat images.
+    Create a master image (median) from a set of single images.
     
     Parameters
     ----------
     fileList : list
-        A list of all single flat image paths.
+        A list of all single image paths.
         
     header : boolean (optional)
-        If True, the headers of each single flat files are returned into a dict
+        If True, the headers of each single files are returned into a dict
         file.
         
     norm : boolean (optional)
-        If True, the master flat is normalized.
+        If True, the master image is normalized.
         
     display : boolean (optional)
-        If True, the master flat is opened with DS9.
+        If True, the master image is opened with DS9.
         
     save : boolean (optional)
-        If True, the master flat is saved as a fits file in the same folder as 
-        the single flat images.
+        If True, the master image is saved as a fits file in the same folder as 
+        the single images.
         
     Returns
     -------
     out : numpy.array
-        The master flat as a numpy array with the same dimension as the single
-        flat images.
+        The master image as a numpy array with the same dimension as the single
+        images.
         
         If header is True, a dict is also returned as a second output object. 
         
     """
-    # TODO: si header est True, ecrire le header dans le masterflat.
+    
+    # TODO: si header est True, ecrire le header dans le master image.
     if verbose: 
         start_time = timeInit()
-        print 'BUILDING THE MASTER FLAT'
+        print 'BUILDING THE MASTER IMAGE'
         print ''
         print 'Save = {}'.format(save)
      
@@ -411,22 +416,27 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False,
         else:
             flats[:,:,j] = open_fits(fileList[j], header=False)
     
-    # Create the master flat -> median
-    mflat = np.median(flats, axis=2)
+    # Create the master image -> median
+    if method == 'median':
+        mimage = np.median(flats, axis=2)
+        norm_factor = np.median(mimage)
+    else:
+        mimage = np.median(flats, axis=2)
+        norm_factor = np.median(mimage)
 
     # Normalization
     if norm:
-        mflat = mflat/np.median(mflat)
+        mimage = mimage/norm_factor
         
     # filtering
     if filtering is not None:    
-        mflat[np.where(mflat < np.median(mflat)-filtering*np.std(mflat))] = 1
+        mimage[np.where(mimage < np.median(mimage)-filtering*np.std(mimage))] = 1
     if verbose:
         print 'filtering = {}'.format(filtering)
 
     # Display
     if display:
-        display_array_ds9(mflat)
+        display_array_ds9(mimage)
 
     # Save    
     if save:
@@ -438,11 +448,11 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False,
             else:
                 path_output = fileList[0][:index[-2]+1]
         
-        if not exists(path_output+'calibration/'):
-            makedirs(path_output+'calibration/')
+        if not exists(path_output):
+            makedirs(path_output)
             
         ## Save > Write the fits             
-        write_fits(path_output+'calibration/mflat.fits',mflat, verbose=verbose)        
+        write_fits(path_output+'{}.fits'.format(filename),mimage, verbose=verbose)        
     
     # Headers
     if header:
@@ -451,18 +461,48 @@ def masterFlat(fileList, header=False, norm=True, display=False, save=False,
     if verbose:         
         print ''
         print '-------------------------------------------------------------------'
-        print 'Master flat successfully created'
+        print 'Master image successfully created'
         timing(start_time)
     
     # Return output(s)
     if full_output:
         if header:    
-            return mflat, headers
+            return mimage, headers
         else:
-            return mflat
+            return mimage
     else:
         return None
     
+
+# ----------------------------------------------------------------------------- 
+
+def masterFlat(fileList, **kwargs):
+    """
+    Override the former version of masterFlat by calling the function master().
+
+    Parameters  
+    ----------
+    fileList : list
+        A list of all single image paths.
+        
+    kwargs : dict-type
+        Additional parameters are passed to master().
+        
+    Return
+    ------
+    out : numpy.array
+        The master flat as a numpy array with the same dimension as the single
+        images.
+        
+        If header is True, a dict is also returned as a second output object.    
+    
+    """
+    path_output = kwargs.pop('path_output',None)
+    filename = kwargs.pop('filename','mflat')
+    
+    return master(fileList, path_output=path_output+'calibration/', 
+                  filename=filename, **kwargs)
+
 
 # ----------------------------------------------------------------------------- 
 
