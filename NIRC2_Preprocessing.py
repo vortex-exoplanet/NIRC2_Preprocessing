@@ -1662,11 +1662,12 @@ def optimized_frame_size(cube):
 # -----------------------------------------------------------------------------
 
 def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True,
-                      save=True, bp_removal=False, verbose=True, path_output=''):
+                      save=True, bp_removal=False, verbose=True, path_output='',
+                      filename='cube'):
     """
     """
+    start_time = timeInit(verbose=verbose)
     if verbose: 
-        start_time = timeInit()
         print 'REGISTRATION AND CROP'
         print ''
         print 'Save = {}'.format(save)    
@@ -1696,7 +1697,7 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
     if save:
         if not exists(path_output+'cube/'):
             makedirs(path_output+'cube/')  
-        filename = path_output+'cube/cube_{}{}{}.fits'.format(start_time.year,start_time.month,start_time.day)
+        filename = path_output+'cube/'+filename+'_{}{}{}.fits'.format(start_time.year,start_time.month,start_time.day)
         write_fits(filename, reg_crop, header=None, verbose=False)
                                 
     if verbose: 
