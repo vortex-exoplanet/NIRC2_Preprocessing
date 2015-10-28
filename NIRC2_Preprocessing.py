@@ -336,9 +336,15 @@ def listing(repository, selection=False, ext = 'fits'):
         A list with all (or selected) filenames.
         
     """   
-    if repository.endswith('.fits'):
-        return [repository]
-    
+
+    if repository.endswith('.'+ext):
+        if isfile(repository):
+            return [repository]
+        else:
+            raise IOError('File does not exist: {}'.format(repository))
+    elif not repository.endswith('/'):
+        repository += '/'
+            
     fileList = [f for f in listdir(repository) if isfile(join(repository,f)) if f.endswith('.'+ext)]
 
     dim = len(fileList)
