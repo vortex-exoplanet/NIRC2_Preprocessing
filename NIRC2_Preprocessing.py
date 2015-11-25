@@ -21,8 +21,7 @@ from astropy.time import Time
 from scipy.optimize import minimize
 
 from os import listdir
-from os.path import isfile, join
-from os.path import exists
+from os.path import isfile, join, exists 
 from os import makedirs
 
 
@@ -58,7 +57,8 @@ __all__ = ['open_fits',
            'precess',
            'premat',
            'get_parang',
-           'get_parallactic_angles']
+           'get_parallactic_angles',
+           'get_parallactic_angles_new']
 
 ###############################################################################
 ###############################################################################
@@ -1270,10 +1270,16 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
     elif isinstance(path_files, list):
         file_list = path_files        
         n = len(file_list)
-    else:
-        file_list = path_files
-        n = file_list.shape[0]
+    else:  
         open_file = False
+        if len(path_files.shape) == 3:
+            file_list = path_files
+            n = file_list.shape[0]
+        elif len(path_files.shape) == 2:
+            n = 1
+            file_list = np.zeros([1,path_files.shape[0],path_files.shape[1]])
+            file_list[0,:,:] = path_files
+        
     
     # First guess (relative center position in the box)
     x_ini, y_ini = (size//2,size//2)
@@ -1810,6 +1816,42 @@ def get_parallactic_angles(file_list, save=False, path_output=''):
         write_fits(path_output+'PA/parallactic_angles.fits', parallactic_angles, header=None, verbose=False)
     
     return parallactic_angles
+    
+# -----------------------------------------------------------------------------
+
+def get_parallactic_angles_new(file_list, save=False, path_output=''):
+    """
+    """
+    parallactic_angles = np.zeros(len(file_list))
+    
+    for k, filename in enumerate(file_list):
+        _, header = open_fits(filename, header=True)
+
+        # compute the hour angle at the middle of the frame in a pythonic way
+        expstart = header['EXPSTART']
+        expstop = header['EXPSTOP']
+        ftr = [3600,60,1]
+        exptime = sum([a*b for a,b in zip(ftr, map(float,expstop.split(':')))]) - \
+                  sum([a*b for a,b in zip(ftr, map(float,expstart.split(':')))])
+        ha_mid = np.radians(header['HA'] + exptime/2.*360./24./3600.)  # convert exptime/2 from seconds of time into degrees
+
+        # derive the true parallactic angle of the object at the middle of the frame
+        dec = np.radians(header['DEC'])
+        lat = np.radians(19. + 49.7/60.)
+        parangle = -np.degrees(np.arctan2(-np.sin(ha_mid), np.cos(dec)*np.tan(lat)-np.sin(dec)*np.cos(ha_mid)))
+
+        # add instrumental contribution to obtain the true angle of the nirc2 frames
+        parallactic_angles[k] = parangle + header['ROTPOSN']-header['INSTANGL'] + (header['PARANG']-header['PARANTEL'])
+
+        # for the record, this is the Crepp version, not correct close to zenith
+        #parallactic_angles[k] = header['ROTPPOSN']+header['PARANTEL']-header['EL']-header['INSTANGL']  
+    
+    if save:
+        if not exists(path_output+'PA/'):
+            makedirs(path_output+'PA/')          
+        write_fits(path_output+'PA/parallactic_angles.fits', parallactic_angles, header=None, verbose=False)
+    
+    return parallactic_angles    
 
 
 ###############################################################################  
