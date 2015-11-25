@@ -1390,8 +1390,64 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
 
 # -----------------------------------------------------------------------------
 def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
-                                      verbose=True):
+                                      verbose=True, full_output=False):
     """
+    Determine the VORTEX center for a set of sci images from the relative position
+    of a dust with respect to the vortex in a single or set of sky images.
+    
+    Parameters
+    ----------
+    sci : numpy.array
+        The sci image(s) as an array.
+        
+    sky : numpy.array
+        The sky image(s) as an array.        
+        
+    dust_options : dict
+        Options related to the determination od the dust position using the
+        function vortex_center_routine(). The dict should have the following 
+        keys:
+        - center: estimation for the center of the dust signature
+        - size: the size of the box in which the center is determined
+        - fun: see Note, here below
+        - parameters: additional parameters for fun
+        
+    vortex_options : int
+        Options related to the determination od the vortex position using the
+        function vortex_center_routine(). The dict should have the following 
+        keys:
+        - center: estimation for the center of the vortex signature
+        - size: the size of the box in which the center is determined
+        - fun: see Note, here below
+        - parameters: additional parameters for fun   
+
+    verbose : boolean (optional)
+        If True, additional informations are displayed in the shell.        
+      
+    full_output : boolean (optional)
+        If True, the vortex and dust center positions in the sky images as
+        well as the relative positions are also returned.
+        
+    Return
+    ------
+    out : numpy.array
+        If full_output is False: 
+            - position of the vortex in the sci images
+        If full_output is True:
+            - position of the vortex in the sci images
+            - position of the dust in the sci images
+            - position of the vortex in the sky images
+            - position of the dust in the sky images
+   
+    Note
+    -----
+    fun : callable
+        VORTEX signature model. The Vortex_Preprocessing module already include:
+        + gauss2d
+        + gauss2d_sym
+        + moffat
+        + cone        
+               
     """
     if verbose: 
         start_time = timeInit()
@@ -1409,7 +1465,7 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
     center_dust_in_sky, _, _ = vortex_center_routine(sky, dust_options['center'], 
                                                   dust_options['size'], dust_options.get('fun',gauss2d_sym), 
                                                   additional_parameters=dust_options.get('parameters',[5]), 
-                                                  verbose=False)
+                                                  verbose=False)                                                 
     if verbose:
         print 'Dust center position in sky image: Done'
         
@@ -1418,11 +1474,13 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
                                                   vortex_options['size'], vortex_options.get('fun',gauss2d_sym), 
                                                   additional_parameters=vortex_options.get('parameters',[5]), 
                                                   verbose=False)
+                                                 
     if verbose:
         print 'Vortex center position in sky image: Done'    
     
     # VORTEX centers in sci
-    relative_position = center_vortex_in_sky[0]-center_dust_in_sky[0]    
+    relative_position = np.mean(center_vortex_in_sky - center_dust_in_sky, axis=0)
+   
     center_all = center_all_dust + np.tile(relative_position,(center_all_dust.shape[0],1))    
     
     if verbose:
@@ -1430,8 +1488,11 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
         print '-------------------------------------------------------------------'
         print 'Vortex center in sci images successfully determined.'
         timing(start_time)
-        
-    return center_all
+   
+    if full_output:
+        return center_all, center_all_dust, center_vortex_in_sky, center_dust_in_sky 
+    else:
+        return center_all
 
 
 # -----------------------------------------------------------------------------
