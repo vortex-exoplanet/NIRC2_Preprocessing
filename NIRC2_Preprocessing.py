@@ -16,7 +16,10 @@ from vip.conf import timeInit, timing
 from vip.calib import frame_shift
 from vip.calib import cube_crop_frames
 
+from astropy.coordinates import FK5
+from astropy.coordinates.sky_coordinate import SkyCoord
 from astropy.time import Time
+from astropy.units import hourangle, degree 
 
 from scipy.optimize import minimize
 
@@ -58,7 +61,7 @@ __all__ = ['open_fits',
            'premat',
            'get_parang',
            'get_parallactic_angles',
-           'get_parallactic_angles_new']
+           'get_parallactic_angles_old']
 
 ###############################################################################
 ###############################################################################
@@ -1864,24 +1867,18 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
 
 def get_parallactic_angles(file_list, save=False, path_output=''):
     """
-    """
-    parallactic_angles = np.zeros(len(file_list))
+    Determine the true image orientation (= true parallactic angle + instrumental contributions) in the NIRC2 frames.
     
-    for k, filename in enumerate(file_list):
-        _, header = open_fits(filename, header=True)
-        parallactic_angles[k] = header['ROTPPOSN']+header['PARANTEL']-header['EL']-header['INSTANGL']  
-    
-    if save:
-        if not exists(path_output+'PA/'):
-            makedirs(path_output+'PA/')          
-        write_fits(path_output+'PA/parallactic_angles.fits', parallactic_angles, header=None, verbose=False)
-    
-    return parallactic_angles
-    
-# -----------------------------------------------------------------------------
+    Parameters
+    ----------
+    fileList : list
+        A list of all image paths.
 
-def get_parallactic_angles_new(file_list, save=False, path_output=''):
-    """
+    save : boolean
+        If True, the parallactic angle list is saved at a fits file.
+
+    path_output : string
+        Path to which the file has to be saved.
     """
     parallactic_angles = np.zeros(len(file_list))
     
@@ -1896,13 +1893,21 @@ def get_parallactic_angles_new(file_list, save=False, path_output=''):
                   sum([a*b for a,b in zip(ftr, map(float,expstart.split(':')))])
         ha_mid = np.radians(header['HA'] + exptime/2.*360./24./3600.)  # convert exptime/2 from seconds of time into degrees
 
+        # precess the star coordinates to the appropriate epoch
+        ra = header['RA']
+        dec = header['DEC']
+        coor = SkyCoord(ra=ra, dec=dec, unit=(degree,degree), frame=FK5, equinox='J2000.0')
+    	obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
+    	coor_curr = coor.transform_to(FK5(equinox=obs_epoch))
+
         # derive the true parallactic angle of the object at the middle of the frame
-        dec = np.radians(header['DEC'])
+        ra = np.radians(coor_curr.ra)
+        dec = np.radians(coor_curr.dec)
         lat = np.radians(19. + 49.7/60.)
         parangle = -np.degrees(np.arctan2(-np.sin(ha_mid), np.cos(dec)*np.tan(lat)-np.sin(dec)*np.cos(ha_mid)))
 
         # add instrumental contribution to obtain the true angle of the nirc2 frames
-        parallactic_angles[k] = parangle + header['ROTPOSN']-header['INSTANGL'] + (header['PARANG']-header['PARANTEL'])
+        parallactic_angles[k] = parangle.value + header['ROTPOSN']-header['INSTANGL'] + (header['PARANG']-header['PARANTEL'])
 
         # for the record, this is the Crepp version, not correct close to zenith
         #parallactic_angles[k] = header['ROTPPOSN']+header['PARANTEL']-header['EL']-header['INSTANGL']  
@@ -1912,8 +1917,27 @@ def get_parallactic_angles_new(file_list, save=False, path_output=''):
             makedirs(path_output+'PA/')          
         write_fits(path_output+'PA/parallactic_angles.fits', parallactic_angles, header=None, verbose=False)
     
-    return parallactic_angles    
+    return parallactic_angles
 
+# -----------------------------------------------------------------------------
+
+def get_parallactic_angles_old(file_list, save=False, path_output=''):
+    """
+    For the record, this is the previous version of the function, based on the formula used by Justin Crepp.
+    """
+    parallactic_angles = np.zeros(len(file_list))
+    
+    for k, filename in enumerate(file_list):
+        _, header = open_fits(filename, header=True)
+        parallactic_angles[k] = header['ROTPPOSN']+header['PARANTEL']-header['EL']-header['INSTANGL']  
+    
+    if save:
+        if not exists(path_output+'PA/'):
+            makedirs(path_output+'PA/')          
+        write_fits(path_output+'PA/parallactic_angles.fits', parallactic_angles, header=None, verbose=False)
+    
+    return parallactic_angles
+    
 
 ###############################################################################  
 
