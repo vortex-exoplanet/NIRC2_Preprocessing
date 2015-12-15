@@ -24,7 +24,7 @@ from astropy.units import hourangle, degree
 from scipy.optimize import minimize
 
 from os import listdir
-from os.path import isfile, join, exists 
+from os.path import isfile, join, exists, basename, dirname
 from os import makedirs
 
 
@@ -456,12 +456,12 @@ def master(fileList, header=False, norm=True, display=False, save=False,
                 path_output = ''
             else:
                 path_output = fileList[0][:index[-2]+1]
-        
+
         if not exists(path_output):
             makedirs(path_output)
             
         ## Save > Write the fits             
-        write_fits(path_output+'{}.fits'.format(filename),mimage, verbose=verbose)        
+        write_fits(join(path_output,'{}.fits'.format(filename)), mimage, verbose=verbose)        
     
     # Headers
     if header:
@@ -509,7 +509,7 @@ def masterFlat(fileList, **kwargs):
     path_output = kwargs.pop('path_output',None)
     filename = kwargs.pop('filename','mflat')
     
-    return master(fileList, path_output=path_output+'calibration/', 
+    return master(fileList, path_output=join(path_output,'calibration',''), 
                   filename=filename, **kwargs)
 
 
@@ -577,19 +577,22 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
     if save:
         # Determine the last / in the filepath to deduce the file path and the 
         # last . to deduce the file name.
-        index_0 = [k for k,letter in enumerate(fileList[0]) if letter == '/']
-        index_1 = [j for j,letter in enumerate(fileList[0]) if letter =='.']        
-        if path_output is None:
-            if len(index_0) == 0:
-                path_output = ''                
-            else:
-                path_output = fileList[0][:index_0[-2]+1]
+        #index_0 = [k for k,letter in enumerate(fileList[0]) if letter == '/']
+        #index_1 = [j for j,letter in enumerate(fileList[0]) if letter =='.']        
+        #if path_output is None:
+        #    if len(index_0) == 0:
+        #        path_output = ''                
+        #    else:
+        #        path_output = fileList[0][:index_0[-2]+1]
                     
         # If it doest not exist, create the path_output/flatted/ repository to store 
         # the processed images.
-        subrep_in_path_output = path_output+fileList[0][index_0[-2]+1:index_0[-1]]+'_flatted/'    
+        #subrep_in_path_output = path_output+fileList[0][index_0[-2]+1:index_0[-1]]+'_flatted/'    
+        subrep_in_path_output = join(path_output,basename(dirname(fileList[0])) + '_flatted','')            
+                    
         if not exists(subrep_in_path_output):
-            makedirs(subrep_in_path_output)            
+            makedirs(subrep_in_path_output)   
+
         
     # Loop: process and handle each file 
     for i, filepath in enumerate(fileList):
@@ -611,8 +614,8 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
         
         ## Loop > save
         if save:      
-            filename = filepath[index_0[-1]+1:index_1[-1]]
-            
+            #filename = filepath[index_0[-1]+1:index_1[-1]]
+            filename = basename(filepath).split('.')[0]
 
             
             ### Loop > save > Create valid header
@@ -1845,9 +1848,10 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
                                 center_cube[1], verbose=False)
 
     if save:
-        if not exists(path_output+'cube/'):
-            makedirs(path_output+'cube/')  
-        output_filename = path_output+'cube/{}_{}{}{}.fits'.format(filename,start_time.year,start_time.month,start_time.day)
+        path_for_cube = join(path_output,'cube')
+        if not exists(path_for_cube):
+            makedirs(path_for_cube)  
+        output_filename = join(path_for_cube,'{}_{}{}{}.fits'.format(filename,start_time.year,start_time.month,start_time.day))
         write_fits(output_filename, reg_crop, header=None, verbose=False)
                                 
     if verbose: 
@@ -1913,9 +1917,10 @@ def get_parallactic_angles(file_list, save=False, path_output=''):
         #parallactic_angles[k] = header['ROTPPOSN']+header['PARANTEL']-header['EL']-header['INSTANGL']  
     
     if save:
-        if not exists(path_output+'PA/'):
-            makedirs(path_output+'PA/')          
-        write_fits(path_output+'PA/parallactic_angles.fits', parallactic_angles, header=None, verbose=False)
+        pa_path = join(path_output,'PA')
+        if not exists(pa_path):
+            makedirs(pa_path)          
+        write_fits(join(pa_path,'parallactic_angles.fits'), parallactic_angles, header=None, verbose=False)
     
     return parallactic_angles
 
