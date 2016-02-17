@@ -506,7 +506,8 @@ def masterFlat(fileList, **kwargs):
         If header is True, a dict is also returned as a second output object.    
     
     """
-    path_output = kwargs.pop('path_output',None)
+    path_output = kwargs.pop('path_output', '')    
+    if path_output is None: path_output = ''    
     filename = kwargs.pop('filename','mflat')
     
     return master(fileList, path_output=join(path_output,'calibration',''), 
@@ -516,7 +517,7 @@ def masterFlat(fileList, **kwargs):
 # ----------------------------------------------------------------------------- 
 
 def applyFlat(fileList, path_mflat, header=False, display=False, save=False, 
-              verbose=False, full_output=True, path_output=None):
+              verbose=False, full_output=True, path_output=''):
     """
     Divide all images in the fileList by the master flat. 
     
@@ -575,19 +576,7 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
     headers = dict()
     
     if save:
-        # Determine the last / in the filepath to deduce the file path and the 
-        # last . to deduce the file name.
-        #index_0 = [k for k,letter in enumerate(fileList[0]) if letter == '/']
-        #index_1 = [j for j,letter in enumerate(fileList[0]) if letter =='.']        
-        #if path_output is None:
-        #    if len(index_0) == 0:
-        #        path_output = ''                
-        #    else:
-        #        path_output = fileList[0][:index_0[-2]+1]
-                    
-        # If it doest not exist, create the path_output/flatted/ repository to store 
-        # the processed images.
-        #subrep_in_path_output = path_output+fileList[0][index_0[-2]+1:index_0[-1]]+'_flatted/'    
+        if path_output is None: path_output = ''
         subrep_in_path_output = join(path_output,basename(dirname(fileList[0])) + '_flatted','')            
                     
         if not exists(subrep_in_path_output):
@@ -1843,7 +1832,7 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
         cube_output_size = optimized_frame_size(reg)
 
     if cube_output_size%2==0: cube_output_size -= 1
-          
+                       
     reg_crop = cube_crop_frames(reg, cube_output_size, center_cube[0], 
                                 center_cube[1], verbose=False)
 
@@ -1863,7 +1852,7 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
         print '-------------------------------------------------------------------'
         print 'Registred and croped cube successfully created'        
         timing(start_time)                                
-    
+
     return reg_crop
 
 
