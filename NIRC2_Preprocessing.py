@@ -2,7 +2,7 @@
 """
 Created on Wed Jul 15 15:57:40 2015
 
-@author: Olivier Wertz, Carlos Gomez, Olivier Absil, see credits.
+@author: Olivier Wertz, Carlos Gonzalez Gomez, Olivier Absil, see credits.
 """
 
 from __future__ import division
@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from vip.fits import open_fits as open_fits_vip
-from vip.fits import display_array_ds9, write_fits
+from vip.fits import vipDS9, write_fits
 from vip.conf import timeInit, timing
 from vip.calib import frame_shift
 from vip.calib import cube_crop_frames
@@ -63,6 +63,13 @@ __all__ = ['open_fits',
            'get_parallactic_angles',
            'get_parallactic_angles_old']
 
+
+# To preserve backward compatibility with existing code
+def display_array_ds9(*args):
+    """ """
+    ds9 = vipDS9()
+    ds9.display(*args)
+    
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -1699,7 +1706,7 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
         size_all[j] = size
     
     # Crop it
-    w = cube_crop_frames(cube,size_all.min(),crop_center[0],crop_center[1],verbose=verbose)
+    w = cube_crop_frames(cube,size_all.min(),crop_center,verbose=verbose)
     
     if verbose:
         old = np.array([cube[k,:,:][crop_center[0],crop_center[1]] for k in range(n_frames)])
@@ -1832,9 +1839,9 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
         cube_output_size = optimized_frame_size(reg)
 
     if cube_output_size%2==0: cube_output_size -= 1
-                       
-    reg_crop = cube_crop_frames(reg, cube_output_size, center_cube[0], 
-                                center_cube[1], verbose=False)
+                             
+    reg_crop = cube_crop_frames(reg, cube_output_size, center_cube, 
+                                verbose=False)
 
     if save:
         path_for_cube = join(path_output,'cube')
