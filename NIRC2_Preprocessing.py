@@ -15,6 +15,7 @@ from vip.fits import vipDS9, write_fits
 from vip.conf import timeInit, timing
 from vip.calib import frame_shift
 from vip.calib import cube_crop_frames
+from vip.var import frame_center
 
 from astropy.coordinates import FK5
 from astropy.coordinates.sky_coordinate import SkyCoord
@@ -1777,7 +1778,7 @@ def optimized_frame_size(cube):
     n_frames, l, c = cube.shape
     frame_shape = np.array([l,c])
     
-    center_cube = np.floor(frame_shape/2)
+    center_cube = frame_center(cube[0,:,:])
     size_all = np.zeros(n_frames)
     
     for j in range(n_frames):
@@ -1824,13 +1825,13 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
     frame_shape = np.array([l,c])
     reg = np.zeros_like(cube)
     
-    center_cube = np.floor(frame_shape/2) 
-    
+    center_cube = frame_center(cube[0,:,:])
+        
     if ds9_indexing:
         based = 1
     else:
         based = 0
-                
+    
     for i,frame in enumerate(cube):
         shift =  center_cube - (center_all[i,:]-based) 
         reg[i,:,:] = frame_shift(cube[i,:,:],shift[1],shift[0])
