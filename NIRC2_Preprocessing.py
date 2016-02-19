@@ -2,7 +2,7 @@
 """
 Created on Wed Jul 15 15:57:40 2015
 
-@author: Olivier Wertz, Carlos Gonzalez Gomez, Olivier Absil, see credits.
+@author: Olivier Wertz, Carlos Gomez Gonzalez, Olivier Absil, see credits.
 """
 
 from __future__ import division
