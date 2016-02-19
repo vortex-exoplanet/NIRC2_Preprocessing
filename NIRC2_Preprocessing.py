@@ -74,7 +74,7 @@ def display_array_ds9(*args):
 ###############################################################################
 ###############################################################################
 ###############################################################################
-  
+
 def open_fits(filename, header=False, verbose=False):
     """
     Load a fits file as numpy array.
@@ -103,38 +103,72 @@ def open_fits(filename, header=False, verbose=False):
     ignored after.
     
     """
-    try:
-        if header:
-            return open_fits_vip(filename, header=True, verbose=verbose)
-        else:
-            return open_fits_vip(filename, header=False, verbose=verbose)
-    except: # If a *missing END card* error is raised 
-        try:
-            import pyfits
-        except ImportError:
-            print 'Due to a possible missing END card error when opening the fits file {}, the missing pyfits package is required.'.format(filename)
-            print 'Download instructions can be found here: '
-            print 'http://www.stsci.edu/institute/software_hardware/pyfits/Download'
-            if header:
-                return (None,None)
-            else:
-                return None
+    if header:
+        return open_fits_vip(filename, header=True, verbose=verbose, ignore_missing_end=True)
+    else:
+        return open_fits_vip(filename, header=False, verbose=verbose, ignore_missing_end=True)
+
+
+# def open_fits(filename, header=False, verbose=False):
+#     """
+#     Load a fits file as numpy array.
+    
+#     Parameters
+#     ----------
+#     filename : string
+#         Name of the fits file.
+
+#     header : boolean (optional)
+#         If True, the header is returned along with the data.
+        
+#     verbose : boolean (optional)
+#         If True, additional informations are displayed in the shell.        
+        
+#     Returns
+#     -------
+#     out : numpy.array, dict (optional)
+#         The fits image as a numpy.array and (optional) the header.
+    
+#     Note
+#     ----
+#     With non-standard header fits file, several "UserWarning" such as:
+#     "The following header keyword is invalid or follows an unrecognized 
+#     non-standard convention" can be returned at the first file opening but are
+#     ignored after.
+    
+#     """
+#     try:
+#         if header:
+#             return open_fits_vip(filename, header=True, verbose=verbose)
+#         else:
+#             return open_fits_vip(filename, header=False, verbose=verbose)
+#     except: # If a *missing END card* error is raised 
+#         try:
+#             import pyfits
+#         except ImportError:
+#             print 'Due to a possible missing END card error when opening the fits file {}, the missing pyfits package is required.'.format(filename)
+#             print 'Download instructions can be found here: '
+#             print 'http://www.stsci.edu/institute/software_hardware/pyfits/Download'
+#             if header:
+#                 return (None,None)
+#             else:
+#                 return None
             
-        hdulist = pyfits.open(filename,ignore_missing_end=True)
-        image = hdulist[0].data
-        if header:
-            header = hdulist[0].header
-            hdulist.close()
-            if verbose:
-                print ''
-                print 'Fits HDU:0 data and header successfully loaded. Data shape: [{},{}]'.format(image.shape[0],image.shape[1])
-            return (image,header)
-        else:
-            hdulist.close()
-            if verbose:
-                print ''
-                print 'Fits HDU:0 data successfully loaded. Data shape: [{},{}]'.format(image.shape[0],image.shape[1])
-            return image
+#         hdulist = pyfits.open(filename,ignore_missing_end=True)
+#         image = hdulist[0].data
+#         if header:
+#             header = hdulist[0].header
+#             hdulist.close()
+#             if verbose:
+#                 print ''
+#                 print 'Fits HDU:0 data and header successfully loaded. Data shape: [{},{}]'.format(image.shape[0],image.shape[1])
+#             return (image,header)
+#         else:
+#             hdulist.close()
+#             if verbose:
+#                 print ''
+#                 print 'Fits HDU:0 data successfully loaded. Data shape: [{},{}]'.format(image.shape[0],image.shape[1])
+#             return image
 
 
 # -----------------------------------------------------------------------------
