@@ -486,7 +486,6 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
     if norm:
         mimage = mimage/norm_factor
 
-    import pdb
     # filtering
     if filtering is not None:
         if isinstance(filtering,tuple):
@@ -498,8 +497,8 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
         bad_pix_low  = mimage < np.median(mimage)-low_filt*np.std(mimage)
         bad_pix_high = mimage > np.median(mimage)+high_filt*np.std(mimage)
         bad_pix_map = bad_pix_low + bad_pix_high
-        from vip.calib.badpixremoval import cube_fix_badpix_isolated
-        mimage=cube_fix_badpix_isolated(mimage,bpm_mask=bad_pix_map)
+        from vip.calib.badpixremoval import frame_fix_badpix_isolated
+        mimage=frame_fix_badpix_isolated(mimage,bpm_mask=bad_pix_map)
     if verbose:
         print 'filtering = {}'.format(filtering)
 
@@ -1900,7 +1899,8 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
 
     if cube_output_size%2==0: cube_output_size -= 1
 
-    reg_crop = cube_crop_frames(reg, cube_output_size, center_cube,
+    center_cube_xy=(int(center_cube[1]),int(center_cube[0])) # Note: for the next line, require coordinates to be (x,y) instead of (y,x)
+    reg_crop = cube_crop_frames(reg, cube_output_size, center_cube_xy,
                                 verbose=False)
 
     if save:
