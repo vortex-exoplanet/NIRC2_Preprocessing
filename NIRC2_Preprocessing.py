@@ -837,7 +837,7 @@ def load_images(path, header=False, verbose=False):
 
 # -----------------------------------------------------------------------------
 
-def plot_surface(image, center=None, size=None, output=False, ds9_indexing=True, **kwargs):
+def plot_surface(image, center=None, size=None, output=False, **kwargs):
     """
     Create a surface plot from image.
 
@@ -856,11 +856,6 @@ def plot_surface(image, center=None, size=None, output=False, ds9_indexing=True,
     size : int (optional, default=None)
         If None, the whole image will be plotted. Otherwise, it corresponds to
         the size of a square in the image.
-
-    ds9_indexing : boolean
-        If True, match 1-indexing with Python 0-indexing. Furthermore, pixel
-        coordinates in DS9 is inverted in comparison with the corresponding
-        Python array entry.
 
     kwargs:
         Additional attributs are passed to the matplotlib figure() and
@@ -881,17 +876,6 @@ def plot_surface(image, center=None, size=None, output=False, ds9_indexing=True,
         x = np.outer(np.arange(0,size,1), np.ones(size))
         y = x.copy().T
         z = image
-
-    elif ds9_indexing:
-        center = (center[0]-1,center[1]-1)
-        cy,cx = center
-        if size % 2:  # if size is odd
-            x = np.outer(np.arange(0,size,1), np.ones(size))
-        else: # otherwise, size is even
-            x = np.outer(np.arange(0,size+1,1), np.ones(size+1))
-        y = x.copy().T
-        z = image[cx-size//2:cx+size//2+1,cy-size//2:cy+size//2+1]
-
 
     plt.figure(figsize=kwargs.pop('figsize',(5,5)))
     ax = plt.axes(projection='3d')
@@ -1122,7 +1106,7 @@ def chisquare(model_parameters, x, y, data, fun, n=None):
 
 # -----------------------------------------------------------------------------
 
-def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, display=False, verbose=True, savefig=False, **kwargs):
+def vortex_center(image, center, size, p_initial, fun, display=False, verbose=True, savefig=False, **kwargs):
     """
     Determine the VORTEX center in the fits image.
 
@@ -1168,12 +1152,10 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
         x = np.outer(np.arange(0,size+1,1), np.ones(size+1))
     y = x.copy().T
 
-    # Initializate variables
+    # Initializate variables and make them integers
     cy, cx = center
-
-    if ds9_indexing:
-        cx = cx - 1 # To match DS9 (1 -> 1024) and python (0 -> 1023) pixel indexing
-        cy = cy - 1 # To match DS9 (1 -> 1024) and python (0 -> 1023) pixel indexing
+    cx=np.int(round(cx))
+    cy=np.int(round(cy))
 
     data = image[cx-size//2:cx+size//2+1,cy-size//2:cy+size//2+1]
     n = data.shape[0]*data.shape[1]
@@ -1192,10 +1174,7 @@ def vortex_center(image, center, size, p_initial, fun, ds9_indexing=True, displa
     #print solu
     # Determine the absolute position of the VORTEX center when the coordinate
     # of the center of the pixel image[0,0] is [1,1] (as it is for DS9)
-    if ds9_indexing:
-        center_vortex = [cy+1+solu.x[1]-size//2, cx+1+solu.x[0]-size//2]
-    else:
-        center_vortex = [cy-size/2.+solu.x[1],cx-size/2.+solu.x[0]]
+    center_vortex = [cy-size/2.+solu.x[1],cx-size/2.+solu.x[0]]
 
     # Display
     if display:
@@ -1558,7 +1537,7 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
 
 # -----------------------------------------------------------------------------
 
-def registration(fileList, initial_position, final_position, ds9_indexing=True, header=False, verbose=False, display=False, save=False):
+def registration(fileList, initial_position, final_position, header=False, verbose=False, display=False, save=False):
     """
     Register (translation, no rotation) a set of fits images.
 
@@ -1575,11 +1554,6 @@ def registration(fileList, initial_position, final_position, ds9_indexing=True, 
     final_position : numpy.array
         Array, shape 1 x 2.
         Position where all images are registered.
-
-    ds9_indexing : boolean
-        If True, match 1-indexing with Python 0-indexing. Furthermore, pixel
-        coordinates in DS9 is inverted in comparison with the corresponding
-        Python array entry.
 
     header : boolean
         If True, all the file headers are returned.
@@ -1615,11 +1589,6 @@ def registration(fileList, initial_position, final_position, ds9_indexing=True, 
     # Shape and number of files
     l, c = open_fits(fileList[0]).shape
     n_image = len(fileList)
-
-    # If required, convert the DS9 center into Python array center
-    if ds9_indexing:
-        final_position = final_position[::-1]-1
-        initial_position = np.array([initial_position[j][::-1] for j in range(n_image)])-1
 
     # Initializate variables
     reg = np.zeros([n_image,l,c])
@@ -1696,7 +1665,7 @@ def registration(fileList, initial_position, final_position, ds9_indexing=True, 
 
 # -----------------------------------------------------------------------------
 
-def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True,
+def cube_crop_frames_optimized(cube, ceny, cenx, verbose=True,
                                display=False, save=False, **kwargs):
     """
     Determine the optimized size of the croppable cube of frames and crop it.
@@ -1712,11 +1681,6 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
     cenx :
         The x-coordinate of the center of the cropped cube.
 
-    ds9_indexing : boolean
-        If True, match 1-indexing with Python 0-indexing. Furthermore, pixel
-        coordinates in DS9 is inverted in comparison with the corresponding
-        Python array entry.
-
     verbose : boolean
         If True, informations are displayed in the shell.
 
@@ -1731,10 +1695,6 @@ def cube_crop_frames_optimized(cube, ceny, cenx, ds9_indexing=True, verbose=True
 
 
     crop_center = np.array([cenx,ceny])
-
-    # Convert the DS9 center into Python array center
-    if ds9_indexing:
-        crop_center = crop_center[::-1]-1
 
     # Determine the size of the cropped cube
     n_frames = cube.shape[0]
@@ -1869,7 +1829,7 @@ def optimized_frame_size(cube):
 
 # -----------------------------------------------------------------------------
 
-def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True,
+def cube_registration(cube, center_all, cube_output_size=None,
                       save=True, bp_removal=False, verbose=True, path_output='',
                       filename='cube'):
     """
@@ -1885,13 +1845,8 @@ def cube_registration(cube, center_all, cube_output_size=None, ds9_indexing=True
 
     center_cube = frame_center(cube[0,:,:])
 
-    if ds9_indexing:
-        based = 1
-    else:
-        based = 0
-
     for i,frame in enumerate(cube):
-        shift =  center_cube - (center_all[i,:]-based)
+        shift =  center_cube - (center_all[i,:])
         reg[i,:,:] = frame_shift(cube[i,:,:],shift[1],shift[0])
 
     if cube_output_size is None:
