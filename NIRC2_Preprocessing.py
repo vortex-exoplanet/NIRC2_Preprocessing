@@ -447,7 +447,9 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
         The master image as a numpy array with the same dimension as the single
         images.
 
-        If header is True, a dict is also returned as a second output object.
+        If bpm is True (default), a bad pixel map is also returned as an output object.
+
+        If header is True, a dict is also returned as an output object.
 
     """
 
@@ -568,6 +570,8 @@ def masterFlat(fileList, **kwargs):
     out : numpy.array
         The master flat as a numpy array with the same dimension as the single
         images.
+
+        If bpm is True (default), a bad pixel map is also returned as an output object.
 
         If header is True, a dict is also returned as a second output object.
 
