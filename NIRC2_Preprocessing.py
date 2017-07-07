@@ -4,7 +4,6 @@ Created on Wed Jul 15 15:57:40 2015
 
 @author: Olivier Wertz, Carlos Gomez Gonzalez, Olivier Absil, Henry Ngo see credits.
 """
-
 from __future__ import division
 
 import numpy as np
@@ -12,9 +11,9 @@ import matplotlib.pyplot as plt
 
 from vip.fits import open_fits as open_fits_vip
 from vip.fits import vipDS9, write_fits
-from vip.conf import timeInit, timing
-from vip.calib import frame_shift
-from vip.calib import cube_crop_frames
+from vip.conf import time_ini, timing
+from vip.preproc import frame_shift
+from vip.preproc import cube_crop_frames
 from vip.var import frame_center
 
 from astropy.coordinates import FK5
@@ -27,7 +26,6 @@ from scipy.optimize import minimize
 from os import listdir
 from os.path import isfile, join, exists, basename, dirname
 from os import makedirs
-
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -455,7 +453,7 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
 
     # TODO: si header est True, ecrire le header dans le master image.
     if verbose:
-        start_time = timeInit()
+        start_time = time_ini()
         print 'BUILDING THE MASTER IMAGE'
         print ''
         print 'Save = {}'.format(save)
@@ -499,7 +497,7 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
         bad_pix_low  = mimage < np.median(mimage)-low_filt*np.std(mimage)
         bad_pix_high = mimage > np.median(mimage)+high_filt*np.std(mimage)
         bad_pix_map = bad_pix_low + bad_pix_high
-        from vip.calib.badpixremoval import frame_fix_badpix_isolated
+        from vip.preproc.badpixremoval import frame_fix_badpix_isolated
         mimage=frame_fix_badpix_isolated(mimage,bpm_mask=bad_pix_map)
     if verbose:
         print 'filtering = {}'.format(filtering)
@@ -617,7 +615,7 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
 
     """
     if verbose:
-        start_time = timeInit()
+        start_time = time_ini()
         print 'PREPROCESSING IMAGES'
         print ''
         print 'Save = {}'.format(save)
@@ -1297,7 +1295,7 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
     # la fonction
 
     if verbose:
-        start_time = timeInit()
+        start_time = time_ini()
         print 'FIND SIGNATURE CENTER'
 
     if preprocess and path_mflat is None:
@@ -1494,7 +1492,7 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
 
     """
     if verbose:
-        start_time = timeInit()
+        start_time = time_ini()
         print 'VORTEX CENTER FROM DUST SIGNATURE'
         print ''
     # DUST centers in sci
@@ -1838,7 +1836,7 @@ def cube_registration(cube, center_all, cube_output_size=None,
                       filename='cube'):
     """
     """
-    start_time = timeInit(verbose=verbose)
+    start_time = time_ini(verbose=verbose)
     if verbose:
         print 'REGISTRATION AND CROP'
         print ''
