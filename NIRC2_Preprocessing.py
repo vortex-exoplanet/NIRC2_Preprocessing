@@ -489,8 +489,8 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
     # filtering
     if filtering is not None:
         if isinstance(filtering,tuple):
-            low_filt=filtering(0)
-            high_filt=filtering(1)
+            low_filt=filtering[0]
+            high_filt=filtering[1]
         else:
             low_filt=filtering
             high_filt=filtering
