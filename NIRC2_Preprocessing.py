@@ -1108,7 +1108,7 @@ def chisquare(model_parameters, x, y, data, fun, n=None):
 
 # -----------------------------------------------------------------------------
 
-def vortex_center(image, center, size, p_initial, fun, display=False, verbose=True, savefig=False, **kwargs):
+def vortex_center(image, center, size, p_initial, fun, display=False, verbose=True, savefig=False, centering_vortex = False, **kwargs):
     """
     Determine the VORTEX center in the fits image.
 
@@ -1159,7 +1159,26 @@ def vortex_center(image, center, size, p_initial, fun, display=False, verbose=Tr
     cx=np.int(round(cx))
     cy=np.int(round(cy))
 
+    # print ('Before, cx & cy: ')
+    # print (cx, cy)
     data = image[cx-size//2:cx+size//2+1,cy-size//2:cy+size//2+1]
+
+    # If centering vortex position, shift the guess location to local maximum in the vortex box
+    # This would be closer to the actual center
+    # This step is specific to the automatic pipeline to avoid manually change the vortex guess
+    if centering_vortex:
+        # Find the index location of the maximum pixel in the vortex box
+        i, j = np.unravel_index(data.argmax(), data.shape)
+        # print ('max index is: ')
+        # print (i, j)
+        cy = cy - (13-j)
+        cx = cx + (13-i)
+        # print ('After, cx & cy: ')
+        # print (cx, cy)
+
+        # Reset the data box around the new vortex center guess
+        data = image[cx-size//2:cx+size//2+1,cy-size//2:cy+size//2+1]
+
     n = data.shape[0]*data.shape[1]
 
     # Display
@@ -1250,7 +1269,7 @@ def vortex_center(image, center, size, p_initial, fun, display=False, verbose=Tr
 
 def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=False,
                           path_mflat=None, additional_parameters=[5,5], cards=None,
-                          verbose=False, **kwargs):
+                          verbose=False, centering_vortex = False, **kwargs):
     """
     Do the same as vortex_center() but for a set of raw or preprocessed images.
 
@@ -1404,6 +1423,7 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
                                   fun,
                                   display= False,
                                   verbose=vc_verbose,
+                                  centering_vortex= centering_vortex,
                                   method = 'Nelder-Mead',
                                   options = options,
                                   **kwargs)
@@ -1515,7 +1535,7 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
     center_vortex_in_sky, _, _ = vortex_center_routine(sky, vortex_options['center'],
                                                   vortex_options['size'], vortex_options.get('fun',gauss2d_sym),
                                                   additional_parameters=vortex_options.get('parameters',[5]),
-                                                  verbose=False)
+                                                  verbose=False, centering_vortex=True)
 
     if verbose:
         print 'Vortex center position in sky image: Done'
@@ -1524,6 +1544,10 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
     relative_position = np.mean(center_vortex_in_sky - center_dust_in_sky, axis=0)
 
     center_all = center_all_dust + np.tile(relative_position,(center_all_dust.shape[0],1))
+    # print ('center all dust')
+    # print center_all_dust
+    # print ('tile')
+    # print np.tile(relative_position,(center_all_dust.shape[0],1))
 
     if verbose:
         print ''
