@@ -389,7 +389,8 @@ def listing(repository, selection=False, ext = 'fits'):
         repository += '/'
 
     fileList = [f for f in listdir(repository) if isfile(join(repository,f)) if f.endswith('.'+ext)]
-
+    fileList.sort()
+           
     dim = len(fileList)
     choice = np.ones(dim)
 
