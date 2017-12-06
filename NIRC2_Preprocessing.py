@@ -9,6 +9,11 @@ from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Import vip_hci aliased as vip
+import vip_hci
+import sys
+sys.modules['vip']=sys.modules['vip_hci']
+
 from vip.fits import open_fits as open_fits_vip
 from vip.fits import vipDS9, write_fits
 from vip.conf import time_ini, timing
@@ -390,7 +395,7 @@ def listing(repository, selection=False, ext = 'fits'):
 
     fileList = [f for f in listdir(repository) if isfile(join(repository,f)) if f.endswith('.'+ext)]
     fileList.sort()
-           
+
     dim = len(fileList)
     choice = np.ones(dim)
 
