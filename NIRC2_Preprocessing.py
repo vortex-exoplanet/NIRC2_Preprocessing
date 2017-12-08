@@ -9,12 +9,14 @@ from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
 
-from vip.fits import open_fits as open_fits_vip
-from vip.fits import vipDS9, write_fits
-from vip.conf import time_ini, timing
-from vip.preproc import frame_shift
-from vip.preproc import cube_crop_frames
-from vip.var import frame_center
+import vip_hci
+
+from vip_hci.fits import open_fits as open_fits_vip
+from vip_hci.fits import write_fits
+from vip_hci.conf import time_ini, timing
+from vip_hci.preproc import frame_shift
+from vip_hci.preproc import cube_crop_frames
+from vip_hci.var import frame_center
 
 from astropy.coordinates import FK5
 from astropy.coordinates.sky_coordinate import SkyCoord
@@ -61,13 +63,6 @@ __all__ = ['open_fits',
            'get_parang',
            'get_parallactic_angles',
            'get_parallactic_angles_old']
-
-
-# To preserve backward compatibility with existing code
-def display_array_ds9(*args):
-    """ """
-    ds9 = vipDS9()
-    ds9.display(*args)
 
 ###############################################################################
 ###############################################################################
@@ -367,8 +362,10 @@ def listing(repository, selection=False, ext = 'fits'):
         Path to the repository which contains files to list
 
     selection : boolean (optional)
-        If True, each image is opened with DS9 and you are asked to keep or
-        discard it.
+        ** REMOVED **
+        VIP no longer supports DS9 so this no longer works.
+        [[ old text: If True, each image is opened with DS9 and you are asked to keep or
+        discard it.]]
 
     ext : str (optional)
         The file extension filter.
@@ -390,18 +387,20 @@ def listing(repository, selection=False, ext = 'fits'):
 
     fileList = [f for f in listdir(repository) if isfile(join(repository,f)) if f.endswith('.'+ext)]
     fileList.sort()
-           
+
     dim = len(fileList)
     choice = np.ones(dim)
 
     if selection:
-        for k,f in enumerate(fileList):
-            w = open_fits(repository+f)
-            display_array_ds9(w)
-            choice[k] = int(raw_input('File {}/{} --> {}: keep [1] or discard [0] ? '.format(k+1,dim,repository+f)))
-
-        print ''
-        print 'DONE !'
+        # VIP no longer supports DS9. Selection is no longer allowed
+        raise Exception('VIP no longer supports DS9. Cannot use "selection" to choose files from DS9 displays')
+        # for k,f in enumerate(fileList):
+        #     w = open_fits(repository+f)
+        #     display_array_ds9(w)
+        #     choice[k] = int(raw_input('File {}/{} --> {}: keep [1] or discard [0] ? '.format(k+1,dim,repository+f)))
+        #
+        # print ''
+        # print 'DONE !'
 
     return [repository+fileList[j] for j in range(dim) if choice[j] == 1]
 
@@ -430,6 +429,7 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
         If True, the master image is normalized.
 
     display : boolean (optional)
+        ** REMOVED as no longer supported in VIP **
         If True, the master image is opened with DS9.
 
     save : boolean (optional)
@@ -498,14 +498,15 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
         bad_pix_low  = mimage < np.median(mimage)-low_filt*np.std(mimage)
         bad_pix_high = mimage > np.median(mimage)+high_filt*np.std(mimage)
         bad_pix_map = bad_pix_low + bad_pix_high
-        from vip.preproc.badpixremoval import frame_fix_badpix_isolated
+        from vip_hci.preproc.badpixremoval import frame_fix_badpix_isolated
         mimage=frame_fix_badpix_isolated(mimage,bpm_mask=bad_pix_map)
     if verbose:
         print 'filtering = {}'.format(filtering)
 
     # Display
     if display:
-        display_array_ds9(mimage)
+        raise Exception("DISPLAY is no longer supported as VIP no longer supports ds9.")
+        #display_array_ds9(mimage)
 
     # Save
     if save:
@@ -599,6 +600,7 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
         Path to the master flat.
 
     display : boolean (optional)
+        ** REMOVED as VIP no longer supports DS9 **
         If True, the master flat is opened with DS9.
 
     save : boolean (optional)
@@ -668,7 +670,8 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
 
         ## Loop > display
         if display:
-            display_array_ds9(processed_all_cube[i,:,:])
+            raise Exception("DISPLAY is no longer supported as VIP no longer supports ds9.")
+            #display_array_ds9(processed_all_cube[i,:,:])
 
         ## Loop > save
         if save:
@@ -1589,6 +1592,7 @@ def registration(fileList, initial_position, final_position, header=False, verbo
         If True, informations are displayed in the shell.
 
     display : boolean
+        ** REMOVED as VIP no longer supports DS9 **
         If True, the cropped cube is displayed with DS9.
 
     save : boolean
@@ -1683,7 +1687,8 @@ def registration(fileList, initial_position, final_position, header=False, verbo
         print '{} successfully saved'.format(output_cube)
 
     if display:
-        display_array_ds9(reg)
+        raise Exception("DISPLAY is no longer supported as VIP no longer supports ds9.")
+        #display_array_ds9(reg)
 
     if header:
         return reg, headers
@@ -1712,6 +1717,7 @@ def cube_crop_frames_optimized(cube, ceny, cenx, verbose=True,
         If True, informations are displayed in the shell.
 
     display : boolean
+        ** REMOVED as VIP no longer supports DS9 **
         If True, the cropped cube is displayed with DS9.
 
     save : boolean
@@ -1809,7 +1815,8 @@ def cube_crop_frames_optimized(cube, ceny, cenx, verbose=True,
 
     # Display
     if display:
-        display_array_ds9(w)
+        raise Exception("DISPLAY is no longer supported as VIP no longer supports ds9.")
+        #display_array_ds9(w)
 
     # Return
     return w
