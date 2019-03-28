@@ -1948,8 +1948,8 @@ def get_parallactic_angles(file_list, save=False, path_output=''):
         ra = header['RA']
         dec = header['DEC']
         coor = SkyCoord(ra=ra, dec=dec, unit=(degree,degree), frame=FK5, equinox='J2000.0')
-    	obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
-    	coor_curr = coor.transform_to(FK5(equinox=obs_epoch))
+        obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
+        coor_curr = coor.transform_to(FK5(equinox=obs_epoch))
 
         # derive the true parallactic angle of the object at the middle of the frame
         ra = np.radians(coor_curr.ra)
