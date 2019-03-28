@@ -3,6 +3,8 @@
 Created on Wed Jul 15 15:57:40 2015
 
 @author: Olivier Wertz, Carlos Gomez Gonzalez, Olivier Absil, Henry Ngo see credits.
+
+Mar 2019: Updated print statements for Python3
 """
 from __future__ import division
 
@@ -139,9 +141,9 @@ def open_fits(filename, header=False, verbose=False):
 #         try:
 #             import pyfits
 #         except ImportError:
-#             print 'Due to a possible missing END card error when opening the fits file {}, the missing pyfits package is required.'.format(filename)
-#             print 'Download instructions can be found here: '
-#             print 'http://www.stsci.edu/institute/software_hardware/pyfits/Download'
+#             print('Due to a possible missing END card error when opening the fits file {}, the missing pyfits package is required.'.format(filename))
+#             print('Download instructions can be found here: ')
+#             print('http://www.stsci.edu/institute/software_hardware/pyfits/Download')
 #             if header:
 #                 return (None,None)
 #             else:
@@ -153,14 +155,14 @@ def open_fits(filename, header=False, verbose=False):
 #             header = hdulist[0].header
 #             hdulist.close()
 #             if verbose:
-#                 print ''
-#                 print 'Fits HDU:0 data and header successfully loaded. Data shape: [{},{}]'.format(image.shape[0],image.shape[1])
+#                 print('')
+#                 print('Fits HDU:0 data and header successfully loaded. Data shape: [{},{}]'.format(image.shape[0],image.shape[1]))
 #             return (image,header)
 #         else:
 #             hdulist.close()
 #             if verbose:
-#                 print ''
-#                 print 'Fits HDU:0 data successfully loaded. Data shape: [{},{}]'.format(image.shape[0],image.shape[1])
+#                 print('')
+#                 print('Fits HDU:0 data successfully loaded. Data shape: [{},{}]'.format(image.shape[0],image.shape[1]))
 #             return image
 
 
@@ -399,8 +401,8 @@ def listing(repository, selection=False, ext = 'fits'):
         #     display_array_ds9(w)
         #     choice[k] = int(raw_input('File {}/{} --> {}: keep [1] or discard [0] ? '.format(k+1,dim,repository+f)))
         #
-        # print ''
-        # print 'DONE !'
+        # print ('')
+        # print ('DONE !')
 
     return [repository+fileList[j] for j in range(dim) if choice[j] == 1]
 
@@ -455,9 +457,9 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
     # TODO: si header est True, ecrire le header dans le master image.
     if verbose:
         start_time = time_ini()
-        print 'BUILDING THE MASTER IMAGE'
-        print ''
-        print 'Save = {}'.format(save)
+        print ('BUILDING THE MASTER IMAGE')
+        print ('')
+        print ('Save = {}'.format(save))
 
     # Shape and number of files
     l, c = open_fits(fileList[0]).shape
@@ -501,7 +503,7 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
         from vip_hci.preproc.badpixremoval import frame_fix_badpix_isolated
         mimage=frame_fix_badpix_isolated(mimage,bpm_mask=bad_pix_map)
     if verbose:
-        print 'filtering = {}'.format(filtering)
+        print ('filtering = {}'.format(filtering))
 
     # Display
     if display:
@@ -529,9 +531,9 @@ def master(fileList, header=False, bpm=True, norm=True, display=False, save=Fals
         headers = extract_headers(fileList)
 
     if verbose:
-        print ''
-        print '-------------------------------------------------------------------'
-        print 'Master image successfully created'
+        print ('')
+        print ('-------------------------------------------------------------------')
+        print ('Master image successfully created')
         timing(start_time)
 
     # Return output(s)
@@ -619,9 +621,9 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
     """
     if verbose:
         start_time = time_ini()
-        print 'PREPROCESSING IMAGES'
-        print ''
-        print 'Save = {}'.format(save)
+        print ('PREPROCESSING IMAGES')
+        print ('')
+        print ('Save = {}'.format(save))
 
 
     # Open the master flat
@@ -690,15 +692,15 @@ def applyFlat(fileList, path_mflat, header=False, display=False, save=False,
             write_fits(output, processed_all_cube[i,:,:], header=header_valid, verbose=False)
 
             #if verbose:
-            #    print '/flatted/{} successfully saved'.format(output[-output[::-1].find('/'):])
+            #    print ('/flatted/{} successfully saved'.format(output[-output[::-1].find('/'):]))
 
     if verbose:
         if save:
-            print ''
-            print 'Fits files successfully created'
-        print ''
-        print '-------------------------------------------------------------------'
-        print 'Images succesfully preprocessed'
+            print ('')
+            print ('Fits files successfully created')
+        print ('')
+        print ('-------------------------------------------------------------------')
+        print ('Images succesfully preprocessed')
         timing(start_time)
 
     # Return the output(s)
@@ -753,8 +755,8 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
         file_list = files
         path = None
     else:
-        print '''*files* must be either the list of fits image filenames or the
-                directory which contains all the fits images'''
+        print ('''*files* must be either the list of fits image filenames or the
+                directory which contains all the fits images''')
         return None
 
     #if header:
@@ -769,7 +771,7 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
     cube[0,:,:] = first
 
     if verbose:
-        print 'Frame {} is added to the cube'.format(file_list[0])
+        print ('Frame {} is added to the cube'.format(file_list[0]))
 
     for k,filename in enumerate(file_list[1:]):
         #if header:
@@ -778,14 +780,14 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
         #    temp = open_fits(filename, header=False)
 
         if temp.shape != (l,c):
-            print 'Each frame must have the same dimension as the first one ({},{}), {} given for {}'.format(l,c,temp.shape,filename)
+            print ('Each frame must have the same dimension as the first one ({},{}), {} given for {}'.format(l,c,temp.shape,filename))
             continue
         else:
             cube[k+1,:,:] = temp
 
         headers.append(h_temp)
         if verbose:
-            print 'Frame {} is added to the cube'.format(filename)
+            print ('Frame {} is added to the cube'.format(filename))
 
     if save:
         if path is None:
@@ -798,8 +800,8 @@ def create_cube_from_frames(files, header=False, verbose=False, save=False):
         write_fits(path+'cube.fits', cube, header=headers[0], verbose=False)
 
         if verbose:
-            print ''
-            print 'The cube is successfully saved'
+            print ('')
+            print ('The cube is successfully saved')
 
     if header:
         return cube, extract_headers(file_list)
@@ -1098,7 +1100,7 @@ def chisquare(model_parameters, x, y, data, fun, n=None):
 
     """
     if x.shape != y.shape:
-        print 'x and y must have the same dimension.'
+        print ('x and y must have the same dimension.')
         return np.inf
 
     if n is None:
@@ -1107,7 +1109,7 @@ def chisquare(model_parameters, x, y, data, fun, n=None):
     n_mp = len(model_parameters)
     z = fun(x,y,*model_parameters)
 
-    #print 'chi2 = {}'.format(((z-data)**2/data).sum()/(n-n_mp))
+    #print ('chi2 = {}'.format(((z-data)**2/data).sum()/(n-n_mp)))
     return ((z-data)**2/data).sum()/(n-n_mp)
 
 # -----------------------------------------------------------------------------
@@ -1238,34 +1240,34 @@ def vortex_center(image, center, size, p_initial, fun, display=False, verbose=Tr
 
     # Verbose
     if verbose:
-        print ''
+        print ('')
         if solu.success:
-            print 'Optimization terminated successfully !'
+            print ('Optimization terminated successfully !')
         else:
-            print 'The minimization has NOT converged but here is the latest best solution.'
-        print ''
-        print 'VORTEX center'
-        print '-------------'
-        print 'Position of the VORTEX center (in DS9): [{:.3f},{:.3f}]'.format(center_vortex[0],center_vortex[1])
-        print 'Relative position of the VORTEX center in the box: [{:.3f},{:.3f}]'.format(solu.x[1],solu.x[0])
-        print ''
-        print 'Note: The center position is given with regard to the DS9 convention,'
-        print 'i.e. [1,1] corresponds to the center of the first pixel.'
-        print ''
-        print 'Optimized parameters'
-        print '--------------------'
+            print ('The minimization has NOT converged but here is the latest best solution.')
+        print ('')
+        print ('VORTEX center')
+        print ('-------------')
+        print ('Position of the VORTEX center (in DS9): [{:.3f},{:.3f}]'.format(center_vortex[0],center_vortex[1]))
+        print ('Relative position of the VORTEX center in the box: [{:.3f},{:.3f}]'.format(solu.x[1],solu.x[0]))
+        print ('')
+        print ('Note: The center position is given with regard to the DS9 convention,')
+        print ('i.e. [1,1] corresponds to the center of the first pixel.')
+        print ('')
+        print ('Optimized parameters')
+        print ('--------------------')
         labels = ['I_0','bkg']
         for j,p in enumerate(solu.x[2:4]):
-            print '{}: {:.3f}'.format(labels[j],p)
+            print ('{}: {:.3f}'.format(labels[j],p))
 
         for k,p in enumerate(solu.x[4:]):
-            print 'Additional parameter {}: {:.3f}'.format(k,p)
+            print ('Additional parameter {}: {:.3f}'.format(k,p))
 
-        print ''
-        print 'Function of merit'
-        print '-----------------'
-        print 'The reduced chi-squared equals {}'.format(solu.fun)
-        print ''
+        print ('')
+        print ('Function of merit')
+        print ('-----------------')
+        print ('The reduced chi-squared equals {}'.format(solu.fun))
+        print ('')
 
     return (center_vortex, solu, (x,y))
 
@@ -1319,7 +1321,7 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
 
     if verbose:
         start_time = time_ini()
-        print 'FIND SIGNATURE CENTER'
+        print ('FIND SIGNATURE CENTER')
 
     if preprocess and path_mflat is None:
         raise ValueError('If "preprocess" is True, the path to the master flat (path_mflat) must be passed to the function.')
@@ -1358,7 +1360,7 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
     elif isinstance(center,list):
         if len(center) != n:
             center = [center[0] for i in range(n)]
-            print 'If "center" is a list of tuple, it must have the same dimension as "path_files".'
+            print ('If "center" is a list of tuple, it must have the same dimension as "path_files".')
 
     if not isinstance(additional_parameters,list):
         additional_parameters = [additional_parameters]
@@ -1381,14 +1383,14 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
     #for k, filename in enumerate(file_list):
     for k in range(n):
         if verbose > 1:
-            print '###################################'
+            print ('###################################')
             if k+1 < 10:
-                print 'Step {}/{}                         #'.format(k+1,n)
+                print ('Step {}/{}                         #'.format(k+1,n))
             elif k+1 >= 10:
-                print 'Step {}/{}                        #'.format(k+1,n)
-            print '###################################'
+                print ('Step {}/{}                        #'.format(k+1,n))
+            print ('###################################')
         elif verbose:
-            pass#print 'Step {}/{}'.format(k+1,n)
+            pass#print ('Step {}/{}'.format(k+1,n))
 
         # Load and preprocess images
         #if preprocess:
@@ -1414,7 +1416,7 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
                     cards_all[card].append(header[card])
                 except:
                     if verbose > 1:
-                        print '{}: invalid header card or not in the header.'.format(card)
+                        print ('{}: invalid header card or not in the header.'.format(card))
                     cards_all[card].append(None)
         else:
             cards_all = None
@@ -1437,15 +1439,15 @@ def vortex_center_routine(path_files, center, size, fun=gauss2d, preprocess=Fals
 
     if verbose:
         if all(success_all):
-            print ''
-            print 'All numerical minimizations have converged.'
+            print ('')
+            print ('All numerical minimizations have converged.')
         else:
-            print ''
-            print 'At least one numerical minimization has not converged.'
+            print ('')
+            print ('At least one numerical minimization has not converged.')
 
-        print ''
-        print '-------------------------------------------------------------------'
-        print 'DONE'
+        print ('')
+        print ('-------------------------------------------------------------------')
+        print ('DONE')
         timing(start_time)
 
     if cards is None:
@@ -1517,15 +1519,15 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
     """
     if verbose:
         start_time = time_ini()
-        print 'VORTEX CENTER FROM DUST SIGNATURE'
-        print ''
+        print ('VORTEX CENTER FROM DUST SIGNATURE')
+        print ('')
     # DUST centers in sci
     center_all_dust, _, _ = vortex_center_routine(sci, dust_options['center'],
                                                   dust_options['size'], dust_options.get('fun',gauss2d_sym),
                                                   additional_parameters=dust_options.get('parameters',[5]),
                                                   verbose=False)
     if verbose:
-        print 'Dust center positions in sci images: Done.'
+        print ('Dust center positions in sci images: Done.')
 
     # DUST center in sky
     center_dust_in_sky, _, _ = vortex_center_routine(sky, dust_options['center'],
@@ -1533,7 +1535,7 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
                                                   additional_parameters=dust_options.get('parameters',[5]),
                                                   verbose=False)
     if verbose:
-        print 'Dust center position in sky image: Done'
+        print ('Dust center position in sky image: Done')
 
     # VORTEX center in sky
     center_vortex_in_sky, _, _ = vortex_center_routine(sky, vortex_options['center'],
@@ -1542,21 +1544,21 @@ def vortex_center_from_dust_signature(sci, sky, dust_options, vortex_options,
                                                   verbose=False, centering_vortex=True)
 
     if verbose:
-        print 'Vortex center position in sky image: Done'
+        print ('Vortex center position in sky image: Done')
 
     # VORTEX centers in sci
     relative_position = np.mean(center_vortex_in_sky - center_dust_in_sky, axis=0)
 
     center_all = center_all_dust + np.tile(relative_position,(center_all_dust.shape[0],1))
     # print ('center all dust')
-    # print center_all_dust
+    # print (center_all_dust)
     # print ('tile')
-    # print np.tile(relative_position,(center_all_dust.shape[0],1))
+    # print (np.tile(relative_position,(center_all_dust.shape[0],1)))
 
     if verbose:
-        print ''
-        print '-------------------------------------------------------------------'
-        print 'Vortex center in sci images successfully determined.'
+        print ('')
+        print ('-------------------------------------------------------------------')
+        print ('Vortex center in sci images successfully determined.')
         timing(start_time)
 
     if full_output:
@@ -1642,7 +1644,7 @@ def registration(fileList, initial_position, final_position, header=False, verbo
         reg[i,:,:] = frame_shift(raw,shift[0],shift[1])
 
         if verbose:
-            print '{}/{}: frame successfully registred'.format(i+1,n_image)
+            print ('{}/{}: frame successfully registred'.format(i+1,n_image))
 
         ## Loop > save
         if save:
@@ -1656,7 +1658,7 @@ def registration(fileList, initial_position, final_position, header=False, verbo
                 path = ''
             else:
                 path = fileList[0][:index_0[-1]+1]
-            print index_0, index_1
+            print (index_0, index_1)
             filename = filepath[index_0[-1]+1:index_1[-1]]
 
             ### Loop > save > If doest not exist, create the path/reg/
@@ -1675,16 +1677,16 @@ def registration(fileList, initial_position, final_position, header=False, verbo
             write_fits(output, reg[i,:,:], header=header_valid, verbose=False)
 
             if verbose:
-                print '       {} successfully saved'.format(output)
-                print ''
+                print ('       {} successfully saved'.format(output))
+                print ('')
 
     if save:
         output_cube = path+'reg/'+'cube'+'_reg.fits'
         write_fits(output_cube, reg, header=header_valid, verbose=False)
 
     if verbose:
-        print ''
-        print '{} successfully saved'.format(output_cube)
+        print ('')
+        print ('{} successfully saved'.format(output_cube))
 
     if display:
         raise Exception("DISPLAY is no longer supported as VIP no longer supports ds9.")
@@ -1764,18 +1766,18 @@ def cube_crop_frames_optimized(cube, ceny, cenx, verbose=True,
         old = np.array([cube[k,:,:][crop_center[0],crop_center[1]] for k in range(n_frames)])
         new = np.array([w[k,(size_all.min()-1)//2,(size_all.min()-1)//2] for k in range(n_frames)])
 
-        print ''
-        print '########################################################'
-        print 'For all frames, the target pixel values should be equal '
-        print 'to the pixel values of the cropped frame centers.       '
-        print 'In other words, if Difference = 0 than that is ok !     '
-        print '########################################################'
-        print 'Target position   |  cropped frame center  |  Difference'
-        print '---------------      --------------------     ----------'
+        print ('')
+        print ('########################################################')
+        print ('For all frames, the target pixel values should be equal ')
+        print ('to the pixel values of the cropped frame centers.       ')
+        print ('In other words, if Difference = 0 than that is ok !     ')
+        print ('########################################################')
+        print ('Target position   |  cropped frame center  |  Difference')
+        print ('---------------      --------------------     ----------')
         for i in range(n_frames):
             space0 = ''.join([' ' for j in range(15-len(str(int(old[i]))))])
             space1 = ''.join([' ' for j in range(19-len(str(int(new[i]))))])
-            print '{:.2f}{}|  {:.2f}{}|  {}'.format(old[i],space0,new[i],space1,old[i]-new[i])
+            print ('{:.2f}{}|  {:.2f}{}|  {}'.format(old[i],space0,new[i],space1,old[i]-new[i]))
 
     # save
     if save:
@@ -1809,9 +1811,9 @@ def cube_crop_frames_optimized(cube, ceny, cenx, verbose=True,
         write_fits(output, w, header=None, verbose=False)
 
         if verbose:
-            print ''
-            print '{} successfully saved'.format(output)
-            print ''
+            print ('')
+            print ('{} successfully saved'.format(output))
+            print ('')
 
     # Display
     if display:
@@ -1870,9 +1872,9 @@ def cube_registration(cube, center_all, cube_output_size=None,
     """
     start_time = time_ini(verbose=verbose)
     if verbose:
-        print 'REGISTRATION AND CROP'
-        print ''
-        print 'Save = {}'.format(save)
+        print ('REGISTRATION AND CROP')
+        print ('')
+        print ('Save = {}'.format(save))
     n, l, c = cube.shape
     frame_shape = np.array([l,c])
     reg = np.zeros_like(cube)
@@ -1901,12 +1903,12 @@ def cube_registration(cube, center_all, cube_output_size=None,
 
     if verbose:
         if save:
-            print ''
-            print 'The following fits file has been successfully created:'
-            print '{}'.format(filename)
-        print ''
-        print '-------------------------------------------------------------------'
-        print 'Registred and croped cube successfully created'
+            print ('')
+            print ('The following fits file has been successfully created:')
+            print ('{}'.format(filename))
+        print ('')
+        print ('-------------------------------------------------------------------')
+        print ('Registred and croped cube successfully created')
         timing(start_time)
 
     return reg_crop
@@ -1946,8 +1948,8 @@ def get_parallactic_angles(file_list, save=False, path_output=''):
         ra = header['RA']
         dec = header['DEC']
         coor = SkyCoord(ra=ra, dec=dec, unit=(degree,degree), frame=FK5, equinox='J2000.0')
-    	obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
-    	coor_curr = coor.transform_to(FK5(equinox=obs_epoch))
+        obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
+        coor_curr = coor.transform_to(FK5(equinox=obs_epoch))
 
         # derive the true parallactic angle of the object at the middle of the frame
         ra = np.radians(coor_curr.ra)
@@ -2114,7 +2116,7 @@ def precess(ra0, dec0, equinox1, equinox2, doprint=False, fk4=False,
       ra = ra + (ra < 0.) * 2.0e0 * np.pi
 
    if doprint:
-      print 'Equinox (%.2f): %f,%f' % (equinox2, ra, dec)
+      print ('Equinox (%.2f): %f,%f' % (equinox2, ra, dec))
    if scal:
       ra, dec = ra[0], dec[0]
    return ra, dec
@@ -2232,9 +2234,9 @@ def get_parang(header, latitude, epoch=None):
     if epoch is None:
         try:
             epoch = header['EQUINOX']
-            print 'Header card EQUINOX: {}'.format(epoch)
+            print ('Header card EQUINOX: {}'.format(epoch))
         except KeyError:
-            print 'Header card EQUINOX not found. FK5 epoch was selected.'
+            print ('Header card EQUINOX not found. FK5 epoch was selected.')
             epoch = 'FK5'
 
     obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
