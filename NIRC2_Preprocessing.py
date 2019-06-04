@@ -1916,7 +1916,7 @@ def cube_registration(cube, center_all, cube_output_size=None,
 
 # -----------------------------------------------------------------------------
 
-def get_parallactic_angles(file_list, save=False, path_output=''):
+def get_parallactic_angles(file_list, alt_method=None, save=False, path_output=''):
     """
     Determine the true image orientation (= true parallactic angle + instrumental contributions) in the NIRC2 frames.
 
@@ -1924,6 +1924,12 @@ def get_parallactic_angles(file_list, save=False, path_output=''):
     ----------
     fileList : list
         A list of all image paths.
+
+    alt_method : one of [None, 'Service2016']; default is None
+        If None, uses original method which computes star coordinates etc.
+        If 'Service2016', uses solution from Service et al. 2016, PASP, 128, 095004
+            See also Footnote #13 in Bowler et al. 2018, AJ, 155, 159
+            Computes parang using NIRC2 narrow camera FITS header keywords
 
     save : boolean
         If True, the parallactic angle list is saved at a fits file.
@@ -1936,32 +1942,43 @@ def get_parallactic_angles(file_list, save=False, path_output=''):
     for k, filename in enumerate(file_list):
         _, header = open_fits(filename, header=True)
 
-        # compute the hour angle at the middle of the frame in a pythonic way
-        expstart = header['EXPSTART']
-        expstop = header['EXPSTOP']
-        ftr = [3600,60,1]
-        exptime = sum([a*b for a,b in zip(ftr, map(float,expstop.split(':')))]) - \
-                  sum([a*b for a,b in zip(ftr, map(float,expstart.split(':')))])
-        ha_mid = np.radians(header['HA'] + exptime/2.*360./24./3600.)  # convert exptime/2 from seconds of time into degrees
+        if alt_method is None:
+            # compute the hour angle at the middle of the frame in a pythonic way
+            expstart = header['EXPSTART']
+            expstop = header['EXPSTOP']
+            ftr = [3600,60,1]
+            exptime = sum([a*b for a,b in zip(ftr, map(float,expstop.split(':')))]) - \
+                      sum([a*b for a,b in zip(ftr, map(float,expstart.split(':')))])
+            ha_mid = np.radians(header['HA'] + exptime/2.*360./24./3600.)  # convert exptime/2 from seconds of time into degrees
 
-        # precess the star coordinates to the appropriate epoch
-        ra = header['RA']
-        dec = header['DEC']
-        coor = SkyCoord(ra=ra, dec=dec, unit=(degree,degree), frame=FK5, equinox='J2000.0')
-        obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
-        coor_curr = coor.transform_to(FK5(equinox=obs_epoch))
+            # precess the star coordinates to the appropriate epoch
+            ra = header['RA']
+            dec = header['DEC']
+            coor = SkyCoord(ra=ra, dec=dec, unit=(degree,degree), frame=FK5, equinox='J2000.0')
+            obs_epoch = Time(header['DATE-OBS'], format='iso', scale='utc')
+            coor_curr = coor.transform_to(FK5(equinox=obs_epoch))
 
-        # derive the true parallactic angle of the object at the middle of the frame
-        ra = np.radians(coor_curr.ra)
-        dec = np.radians(coor_curr.dec)
-        lat = np.radians(19. + 49.7/60.)
-        parangle = -np.degrees(np.arctan2(-np.sin(ha_mid), np.cos(dec)*np.tan(lat)-np.sin(dec)*np.cos(ha_mid)))
+            # derive the true parallactic angle of the object at the middle of the frame
+            ra = np.radians(coor_curr.ra)
+            dec = np.radians(coor_curr.dec)
+            lat = np.radians(19. + 49.7/60.)
+            parangle = -np.degrees(np.arctan2(-np.sin(ha_mid), np.cos(dec)*np.tan(lat)-np.sin(dec)*np.cos(ha_mid)))
 
-        # add instrumental contribution to obtain the true angle of the nirc2 frames
-        parallactic_angles[k] = parangle.value + header['ROTPOSN']-header['INSTANGL'] + (header['PARANG']-header['PARANTEL'])
+            # add instrumental contribution to obtain the true angle of the nirc2 frames
+            parallactic_angles[k] = parangle.value + header['ROTPOSN']-header['INSTANGL'] + (header['PARANG']-header['PARANTEL'])
 
-        # for the record, this is the Crepp version, not correct close to zenith
-        #parallactic_angles[k] = header['ROTPPOSN']+header['PARANTEL']-header['EL']-header['INSTANGL']
+            # for the record, this is the Crepp version, not correct close to zenith
+            #parallactic_angles[k] = header['ROTPPOSN']+header['PARANTEL']-header['EL']-header['INSTANGL']
+        elif alt_method=='Service2016':
+            # Following Footnote #13 of Bowler et al 2018
+            # "The position angle of celestial north with respect to the +y axis for NIRC2 images
+            # taken in vertical angle (pupil tracking) mode with the narrow camera can be found
+            # using FITS header keywords: PARANG + ROTPOSN − INSTANGL − θNorth"
+            theta_north = 0.262 # From Service+ 2016
+            parallactic_angles[k] = header['PARANG'] + header['ROTPOSN'] - header['INSTANGL'] - theta_north
+
+        else:
+            raise Exception("Invalid value for 'alt_method'")
 
     if save:
         pa_path = join(path_output,'PA')
